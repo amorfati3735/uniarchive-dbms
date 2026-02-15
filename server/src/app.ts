@@ -49,10 +49,18 @@ app.get('/api/health', (req, res) => {
 const PORT = process.env.PORT || 5000;
 
 // Only listen if the file is run directly (not imported)
-if (require.main === module) {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
+// Only listen if the file is run directly (not imported) and NOT in Vercel
+if (process.env.VITE_API_URL === undefined && !process.env.VERCEL) {
+    // Simple heuristic: If VERCEL env is not set, we might be local.
+    // Or just check if we are being run by node directly?
+    // In ESM, require.main is not available.
+    // We can use a simpler check: if port is not 5000 (default) maybe? 
+    // Actually, just rely on this:
+    if (process.argv[1] && process.argv[1].endsWith('app.ts')) {
+        app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+    }
 }
 
 export default app;
