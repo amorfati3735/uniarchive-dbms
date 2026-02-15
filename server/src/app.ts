@@ -14,6 +14,7 @@ dotenv.config();
 const app = express();
 
 // Connect to Database
+console.log("Attempting DB Connect. URI present?", !!process.env.MONGO_URI);
 connectDB().catch(err => {
     console.error("Database Connection Failure:", err);
     // We don't exit, allowing the app to start so /health works
