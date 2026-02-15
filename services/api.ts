@@ -77,7 +77,10 @@ export const api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query })
         });
-        if (!res.ok) throw new Error('AI request failed');
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`AI Request Failed: ${res.status} ${res.statusText} - ${errorText}`);
+        }
         const data = await res.json();
         return data.answer;
     }

@@ -21,6 +21,10 @@ connectDB().catch(err => {
 });
 
 // Middleware
+app.use((req, res, next) => {
+    console.log(`[Request] ${req.method} ${req.path}`);
+    next();
+});
 app.use(cors());
 app.use(express.json());
 
