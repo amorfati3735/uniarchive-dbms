@@ -9,10 +9,10 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export const uploadToCloudinary = (fileBuffer: Buffer, folder: string = 'uniarchive'): Promise<any> => {
+export const uploadToCloudinary = (fileBuffer: Buffer, folder: string = 'uniarchive', resourceType: 'auto' | 'raw' | 'image' = 'auto'): Promise<any> => {
     return new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
-            { folder: folder, resource_type: 'auto' },
+            { folder: folder, resource_type: resourceType },
             (error, result) => {
                 if (error) {
                     reject(error);

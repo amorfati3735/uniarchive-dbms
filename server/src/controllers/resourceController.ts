@@ -56,7 +56,11 @@ export const createResource = async (req: Request, res: Response) => {
         let result;
         try {
             console.log('[Upload] Starting Cloudinary upload...');
-            result = await uploadToCloudinary(req.file.buffer);
+            // Determine resource type: 'image' for images, 'raw' for everything else (PDFs, Docs) to prevent corruption
+            const isImage = req.file.mimetype.startsWith('image/');
+            const resourceType = isImage ? 'image' : 'raw';
+
+            result = await uploadToCloudinary(req.file.buffer, 'uniarchive', resourceType);
             console.log('[Upload] Cloudinary success:', result.secure_url);
         } catch (uploadError: any) {
             console.error('[Upload] Cloudinary Failed:', uploadError);
