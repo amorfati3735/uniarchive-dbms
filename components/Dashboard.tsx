@@ -344,7 +344,7 @@ export const Dashboard: React.FC = () => {
             {/* Hero Section */}
             <header className="mb-12 text-center md:text-left">
               <h1 className="text-3xl md:text-6xl font-display font-bold text-uni-contrast mb-4 tracking-tight leading-none uppercase">
-                Break down <span className="text-transparent bg-clip-text bg-gradient-to-r from-uni-neon to-uni-cyan">note gatekps</span>.
+                Break down <span className="text-transparent bg-clip-text bg-gradient-to-r from-uni-neon to-uni-cyan">note gatekeeps</span>.
               </h1>
               <p className="text-uni-muted text-sm md:text-lg font-mono max-w-2xl border-l-2 border-uni-neon pl-4">
                 Discover high-quality resources from parallel slots and classes.
