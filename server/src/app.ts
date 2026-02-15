@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -31,6 +32,15 @@ app.use('/api/auth', authRoutes);
 // Base route
 app.get('/', (req, res) => {
     res.send('UniArchive API is running...');
+});
+
+// Health Check
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        dbState: mongoose.connection.readyState
+    });
 });
 
 const PORT = process.env.PORT || 5000;

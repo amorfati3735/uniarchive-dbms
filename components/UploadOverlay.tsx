@@ -28,7 +28,13 @@ export const UploadOverlay: React.FC<Props> = ({ onClose, onUploadComplete }) =>
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      // Vercel Serverless Limit is 4.5MB. We limit to 4MB to be safe.
+      if (selectedFile.size > 4 * 1024 * 1024) {
+        alert("File too large! Max size is 4MB for serverless uploads.");
+        return;
+      }
+      setFile(selectedFile);
     }
   };
 
