@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import fetch from 'node-fetch';
+
 
 export const askAI = async (req: Request, res: Response): Promise<void> => {
     const { query } = req.body;
