@@ -269,42 +269,42 @@ export const MOCK_COURSE_STATS: CourseStats[] = [
   },
   // Adding mock stats for other subjects
   {
-      courseCode: 'CSE3003',
-      completeness: 75,
-      qualityAvg: 80,
-      totalResources: 30,
-      topicCoverage: [{topic: 'OS', coverage: 70}],
-      activityGrid: generateActivityGrid()
+    courseCode: 'CSE3003',
+    completeness: 75,
+    qualityAvg: 80,
+    totalResources: 30,
+    topicCoverage: [{ topic: 'OS', coverage: 70 }],
+    activityGrid: generateActivityGrid()
   },
   {
-      courseCode: 'ECE1002',
-      completeness: 85,
-      qualityAvg: 90,
-      totalResources: 55,
-      topicCoverage: [{topic: 'DLD', coverage: 85}],
-      activityGrid: generateActivityGrid()
+    courseCode: 'ECE1002',
+    completeness: 85,
+    qualityAvg: 90,
+    totalResources: 55,
+    topicCoverage: [{ topic: 'DLD', coverage: 85 }],
+    activityGrid: generateActivityGrid()
   },
-    {
-      courseCode: 'CSE4001',
-      completeness: 60,
-      qualityAvg: 85,
-      totalResources: 15,
-      topicCoverage: [{topic: 'Compiler', coverage: 60}],
-      activityGrid: generateActivityGrid()
+  {
+    courseCode: 'CSE4001',
+    completeness: 60,
+    qualityAvg: 85,
+    totalResources: 15,
+    topicCoverage: [{ topic: 'Compiler', coverage: 60 }],
+    activityGrid: generateActivityGrid()
   },
-    {
-      courseCode: 'CSE2004',
-      completeness: 90,
-      qualityAvg: 88,
-      totalResources: 95,
-      topicCoverage: [{topic: 'DBMS', coverage: 90}],
-      activityGrid: generateActivityGrid()
+  {
+    courseCode: 'CSE2004',
+    completeness: 90,
+    qualityAvg: 88,
+    totalResources: 95,
+    topicCoverage: [{ topic: 'DBMS', coverage: 90 }],
+    activityGrid: generateActivityGrid()
   }
 ];
 
 export const AVAILABLE_TOPICS = [
-  'Probability', 'Statistics', 'Calculus', 'Linear Algebra', 
-  'Mechanics', 'Optics', 'Thermodynamics', 
+  'Probability', 'Statistics', 'Calculus', 'Linear Algebra',
+  'Mechanics', 'Optics', 'Thermodynamics',
   'Data Structures', 'Algorithms', 'OS', 'Networks',
   'SQL', 'Compiler', 'AI', 'Machine Learning', 'Web Dev'
 ];
@@ -324,7 +324,7 @@ export const FAQ_DATA: FAQItem[] = [
   },
   {
     question: "How do I verify my account?",
-    answer: "Sign in using your official university email address (@vitstudent.ac.in). A verification link will be sent to your inbox."
+    answer: "Sign in using any valid email address. A verification code will be sent to your inbox."
   }
 ];
 
