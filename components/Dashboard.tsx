@@ -17,15 +17,33 @@ import { Library } from './Library';
 import { api } from '../services/api';
 import { MobileNav } from './MobileNav';
 
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+
 export const Dashboard: React.FC = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Navigation State
-  const [activeTab, setActiveTab] = useState<ViewMode>(ViewMode.DISCOVER);
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
+  // Router Hooks
+  const location = useLocation();
+  const navigate = useNavigate();
+  const params = useParams();
+
+  // Derived State from URL
+  let activeTab = ViewMode.DISCOVER;
+  let selectedSubject: string | null = null;
+  let selectedResourceId: string | null = null;
+
+  if (location.pathname === '/analytics') activeTab = ViewMode.ANALYTICS;
+  else if (location.pathname === '/library') activeTab = ViewMode.LIBRARY;
+  else if (location.pathname.startsWith('/subject/')) {
+    activeTab = ViewMode.SUBJECT_DETAIL;
+    selectedSubject = params.code || null;
+  }
+  else if (location.pathname.startsWith('/resource/')) {
+    activeTab = ViewMode.RESOURCE_VIEWER;
+    selectedResourceId = params.id || null;
+  }
 
   const [selectedType, setSelectedType] = useState<ResourceType | 'ALL'>('ALL');
   const [selectedSlot, setSelectedSlot] = useState<string | 'ALL'>('ALL');
@@ -94,50 +112,27 @@ export const Dashboard: React.FC = () => {
   // Since we filter on server, 'resources' is already 'filteredResources'
   const filteredResources = resources;
 
-  // --- HISTORY & NAVIGATION HANDLERS ---
+  // --- NAVIGATION HANDLERS ---
 
   const handleNavigation = (mode: ViewMode, param?: string) => {
-    const newState: any = { mode };
-    if (mode === ViewMode.SUBJECT_DETAIL && param) newState.code = param;
-    if (mode === ViewMode.RESOURCE_VIEWER && param) newState.id = param;
-
-    // Push to history
-    window.history.pushState(newState, '', '');
-
-    // Update Local State
-    updateViewFromState(newState);
+    switch (mode) {
+      case ViewMode.DISCOVER: navigate('/'); break;
+      case ViewMode.ANALYTICS: navigate('/analytics'); break;
+      case ViewMode.LIBRARY: navigate('/library'); break;
+      case ViewMode.SUBJECT_DETAIL: navigate(`/subject/${param}`); break;
+      case ViewMode.RESOURCE_VIEWER: navigate(`/resource/${param}`); break;
+    }
   };
 
-  const updateViewFromState = (state: any) => {
-    setActiveTab(state.mode);
-    if (state.mode === ViewMode.SUBJECT_DETAIL) setSelectedSubject(state.code);
-    else setSelectedSubject(null);
-
-    if (state.mode === ViewMode.RESOURCE_VIEWER) setSelectedResourceId(state.id);
-    else setSelectedResourceId(null);
-
-    // Scroll to top on nav
-    window.scrollTo(0, 0);
-  };
-
+  // Scroll to top on route change
   useEffect(() => {
-    // Initial State replacement to handle "Back" to home
-    window.history.replaceState({ mode: ViewMode.DISCOVER }, '', '');
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
-    const handlePopState = (event: PopStateEvent) => {
-      if (event.state) {
-        updateViewFromState(event.state);
-      } else {
-        // Fallback to home
-        setActiveTab(ViewMode.DISCOVER);
-        setSelectedSubject(null);
-        setSelectedResourceId(null);
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  // Back handler for SubjectDetail and ResourceViewer
+  const goBack = () => {
+    navigate(-1);
+  };
 
   // --- END NAVIGATION ---
 
@@ -187,9 +182,7 @@ export const Dashboard: React.FC = () => {
     handleNavigation(ViewMode.RESOURCE_VIEWER, id);
   };
 
-  const goBack = () => {
-    window.history.back();
-  };
+
 
   // If in Resource Viewer Mode
   if (activeTab === ViewMode.RESOURCE_VIEWER && selectedResourceId) {
