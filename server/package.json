@@ -2,6 +2,7 @@
     "name": "uniarchive-server",
     "version": "1.0.0",
     "description": "Backend for UniArchive",
+    "type": "module",
     "main": "dist/app.js",
     "scripts": {
         "start": "node dist/app.js",
