@@ -34,12 +34,12 @@ export const SearchOverlay: React.FC<Props> = ({ onClose, onSelectResource, onSe
     e.preventDefault();
     if (aiMode && query.trim()) {
       setIsAiLoading(true);
-      setIsAiLoading(true);
       try {
         const answer = await api.askAI(query);
         setAiResponse(answer);
-      } catch (err) {
-        setAiResponse("Sorry, I couldn't reach the AI service right now.");
+      } catch (err: any) {
+        console.error("AI Error:", err);
+        setAiResponse(`Error: ${err.message || "Failed to reach AI service"}`);
       } finally {
         setIsAiLoading(false);
       }
