@@ -21,9 +21,21 @@ connectDB().catch(err => {
 });
 
 // Middleware
-app.use((req, res, next) => {
+// Middleware to ensure DB connection
+app.use(async (req, res, next) => {
     console.log(`[Request] ${req.method} ${req.path}`);
-    next();
+    if (req.path === '/api/health' || req.path === '/api/ping') {
+        next();
+        return;
+    }
+
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        console.error("DB Connection Await Error:", error);
+        res.status(500).json({ message: "Database connection failed" });
+    }
 });
 app.use(cors());
 app.use(express.json());
