@@ -14,14 +14,17 @@ dotenv.config();
 const app = express();
 
 // Connect to Database
-connectDB();
+connectDB().catch(err => {
+    console.error("Database Connection Failure:", err);
+    // We don't exit, allowing the app to start so /health works
+});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Static folder for uploads
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Static folder not needed for Vercel/Cloudinary
+// app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
 app.use('/api/resources', resourceRoutes);
