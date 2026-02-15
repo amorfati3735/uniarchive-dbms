@@ -1,6 +1,7 @@
 import { Resource, CourseStats, Comment, ResourceType } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_URL = isLocal ? 'http://localhost:5000/api' : '/api';
 
 export const api = {
     // Resources
