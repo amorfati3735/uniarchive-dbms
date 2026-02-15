@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import Otp from '../models/Otp';
-import { sendEmail } from '../utils/email';
+import Otp from '../models/Otp.js';
+import { sendEmail } from '../utils/email.js';
 
 // @desc    Send OTP to email
 // @route   POST /api/auth/otp

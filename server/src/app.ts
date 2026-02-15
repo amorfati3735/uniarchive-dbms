@@ -3,11 +3,11 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
-import connectDB from './config/db';
-import resourceRoutes from './routes/resourceRoutes';
-import statsRoutes from './routes/statsRoutes';
-import aiRoutes from './routes/aiRoutes';
-import authRoutes from './routes/authRoutes';
+import connectDB from './config/db.js';
+import resourceRoutes from './routes/resourceRoutes.js';
+import statsRoutes from './routes/statsRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 
 dotenv.config();
 

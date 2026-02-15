@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import CourseStats from '../models/CourseStats';
-import Resource from '../models/Resource';
+import CourseStats from '../models/CourseStats.js';
+import Resource from '../models/Resource.js';
 
 // @desc    Get dashboard stats
 // @route   GET /api/stats

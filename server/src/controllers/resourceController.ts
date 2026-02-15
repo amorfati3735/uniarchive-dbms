@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import Resource, { IResource } from '../models/Resource';
-import { uploadToCloudinary } from '../utils/cloudinary';
+import Resource, { IResource } from '../models/Resource.js';
+import { uploadToCloudinary } from '../utils/cloudinary.js';
 
 // @desc    Get all resources
 // @route   GET /api/resources

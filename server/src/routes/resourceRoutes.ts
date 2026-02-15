@@ -5,8 +5,8 @@ import {
     createResource,
     updateInteraction,
     addComment
-} from '../controllers/resourceController';
-import upload from '../middleware/uploadMiddleware';
+} from '../controllers/resourceController.js';
+import upload from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
