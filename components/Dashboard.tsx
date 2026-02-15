@@ -63,6 +63,18 @@ export const Dashboard: React.FC = () => {
   const [topSlots, setTopSlots] = useState<{ name: string, resources: number, score: number }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Restore Session
+  useEffect(() => {
+    const savedUser = localStorage.getItem('uniarchive_user');
+    if (savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('uniarchive_user');
+      }
+    }
+  }, []);
+
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   // --- DATA FETCHING ---
@@ -292,7 +304,14 @@ export const Dashboard: React.FC = () => {
           {currentUser ? (
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold text-uni-contrast hidden md:inline">{currentUser.username}</span>
-              <button onClick={() => setCurrentUser(null)} className="text-uni-alert hover:text-white" title="Logout">
+              <button
+                onClick={() => {
+                  setCurrentUser(null);
+                  localStorage.removeItem('uniarchive_user');
+                }}
+                className="text-uni-alert hover:text-white"
+                title="Logout"
+              >
                 <LogOut size={18} />
               </button>
             </div>

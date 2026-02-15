@@ -61,14 +61,31 @@ export const api = {
         return res.json();
     },
 
-    // Auth (Mock)
-    login: async (email: string): Promise<void> => {
-        const res = await fetch(`${API_URL}/auth/login`, {
+    // Auth
+    sendOtp: async (email: string): Promise<any> => {
+        const res = await fetch(`${API_URL}/auth/otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email })
-        }).catch(() => { }); // Optional endpoint, ignore if missing
-        return Promise.resolve();
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.message || 'Failed to send OTP');
+        }
+        return res.json();
+    },
+
+    verifyOtp: async (email: string, otp: string): Promise<any> => {
+        const res = await fetch(`${API_URL}/auth/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otp })
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.message || 'Verification failed');
+        }
+        return res.json();
     },
 
     // AI Assistant
