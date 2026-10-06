@@ -12,7 +12,7 @@
         "db:reset": "tsx src/seed/seed.ts",
         "typecheck": "tsc --noEmit",
         "pretest": "tsx src/seed/seed.ts",
-        "test": "node --import tsx --test --test-force-exit test/schema.test.ts test/api.test.ts"
+        "test": "node --import tsx --test --test-force-exit test/schema.test.ts test/api.test.ts test/auth.test.ts"
     },
     "dependencies": {
         "cloudinary": "^2.9.0",

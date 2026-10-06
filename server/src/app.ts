@@ -1,9 +1,8 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import compression from 'compression';
 import cors from 'cors';
-import path from 'path';
 import dotenv from 'dotenv';
-import { connectDB, queryOne } from './config/db.js';
+import { connectDB, queryOne, default as pool } from './config/db.js';
 import resourceRoutes from './routes/resourceRoutes.js';
 import statsRoutes from './routes/statsRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
@@ -13,36 +12,38 @@ dotenv.config();
 
 const app = express();
 
-// Connect to Database
-console.log("Attempting DB Connect. URI present?", !!process.env.MONGO_URI);
+// Behind Vercel / a reverse proxy, so req.ip and rate limiting see the real client.
+app.set('trust proxy', 1);
+
+// Connect eagerly, but never exit on failure so /api/health can still answer.
 connectDB().catch(err => {
-    console.error("Database Connection Failure:", err);
-    // We don't exit, allowing the app to start so /health works
+    console.error('Database connection failure:', err.message);
 });
 
-// Middleware
-// Middleware to ensure DB connection
-app.use(async (req, res, next) => {
-    console.log(`[Request] ${req.method} ${req.path}`);
+// Ensure the database is reachable before handling data routes.
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+    if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Request] ${req.method} ${req.path}`);
+    }
     if (req.path === '/api/health' || req.path === '/api/ping') {
         next();
         return;
     }
-
     try {
         await connectDB();
         next();
-    } catch (error) {
-        console.error("DB Connection Await Error:", error);
-        res.status(500).json({ message: "Database connection failed" });
+    } catch (error: any) {
+        console.error('Database connection await error:', error);
+        res.status(500).json({ message: 'Database connection failed' });
     }
 });
-app.use(cors());
-app.use(compression());
-app.use(express.json());
 
-// Static folder not needed for Vercel/Cloudinary
-// app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// CORS is open by default (public, read-mostly API). Set CORS_ORIGIN to a
+// comma-separated allowlist to lock it down.
+const corsOrigin = process.env.CORS_ORIGIN;
+app.use(cors(corsOrigin ? { origin: corsOrigin.split(',').map(o => o.trim()) } : {}));
+app.use(compression());
+app.use(express.json({ limit: '1mb' }));
 
 // Routes
 app.use('/api/resources', resourceRoutes);
@@ -51,12 +52,12 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/auth', authRoutes);
 
 // Base route
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
     res.send('UniArchive API is running...');
 });
 
 // Health Check
-app.get('/api/health', async (req, res) => {
+app.get('/api/health', async (_req, res) => {
     let dbState = 'disconnected';
     try {
         await queryOne('SELECT 1 AS ok');
@@ -71,15 +72,36 @@ app.get('/api/health', async (req, res) => {
     });
 });
 
+// Unknown API route -> JSON 404 (instead of Express' HTML default).
+app.use('/api', (_req, res) => {
+    res.status(404).json({ message: 'Not found' });
+});
+
+// Central error handler, so a thrown handler returns JSON rather than HTML.
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error('[Unhandled]', err);
+    if (res.headersSent) return;
+    res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
+});
+
 const PORT = process.env.PORT || 5000;
 
-// Start the HTTP listener unless we are running as a serverless function.
-// On Vercel the app is imported and invoked per-request (see api/index.ts),
-// so it must not bind a port itself.
+// Start the HTTP listener unless running as a serverless function.
+// On Vercel the app is imported and invoked per-request (see api/index.ts).
 if (!process.env.VERCEL) {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
     });
+
+    const shutdown = async (signal: string) => {
+        console.log(`\n${signal} received, shutting down...`);
+        server.close(async () => {
+            await pool.end().catch(() => {});
+            process.exit(0);
+        });
+    };
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 export default app;

@@ -66,7 +66,8 @@ export const createResourceHandler = async (req: Request, res: Response) => {
             return;
         }
 
-        const created = await createResource(metadata, result.secure_url, 'You');
+        // Attribute the upload to the signed-in user when the client sends one.
+        const created = await createResource(metadata, result.secure_url, metadata.author || 'You');
         res.status(201).json(created);
     } catch (error: any) {
         console.error('[CreateResource] Error:', error);
