@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* Provides the `animate-in` / `fade-in` / `slide-in-from-*` utilities that the
+   components use (these were silent no-ops when Tailwind came from the CDN). */
+@import "tw-animate-css";
 
 /* ---------------------------------------------------------------------------
    Theme tokens.

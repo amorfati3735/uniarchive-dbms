@@ -49,7 +49,7 @@ export const Library: React.FC<Props> = ({
                    <div onClick={() => onSelectSubject(subject.code)} className="cursor-pointer">
                       <div className="flex justify-between items-start mb-2">
                          <BookOpen size={20} className="text-uni-cyan" />
-                         <span className="text-[10px] font-mono text-uni-muted bg-uni-black px-1.5 py-0.5 border border-uni-border">{subject.resourcesCount} RES</span>
+                         <span className="text-[10px] font-mono text-uni-muted bg-uni-black px-1.5 py-0.5 border border-uni-border">{subject.resourcesCount ?? 0} RES</span>
                       </div>
                       <h4 className="font-bold text-uni-contrast text-lg">{subject.code}</h4>
                       <p className="text-xs text-uni-muted truncate">{subject.name}</p>

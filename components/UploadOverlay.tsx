@@ -6,9 +6,10 @@ import { api } from '../services/api';
 interface Props {
   onClose: () => void;
   onUploadComplete: (resource: Resource) => void;
+  author?: string;
 }
 
-export const UploadOverlay: React.FC<Props> = ({ onClose, onUploadComplete }) => {
+export const UploadOverlay: React.FC<Props> = ({ onClose, onUploadComplete, author }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [file, setFile] = useState<File | null>(null);
 
@@ -48,24 +49,21 @@ export const UploadOverlay: React.FC<Props> = ({ onClose, onUploadComplete }) =>
 
     setIsPublishing(true);
     try {
+      // Only the fields the API actually stores; counters and timestamps are
+      // server-owned and the id is assigned by the database.
       const metadata = {
-        id: '', // Backend handles ID
-        title: title,
+        title,
         courseCode: courseCode.toUpperCase(),
         slot: slot.toUpperCase(),
-        type: type,
+        type,
         topics: topics.split(',').map(t => t.trim()).filter(t => t),
         qualityScore: Math.floor(completeness * 0.9) + 5,
-        completeness: completeness,
-        upvotes: 0,
-        downloads: 0,
-        views: 0,
-        author: 'You',
-        professor: professor,
-        semester: semester,
-        year: year,
-        createdAt: new Date().toISOString(),
-        description: description
+        completeness,
+        author: author || 'You',
+        professor,
+        semester,
+        year,
+        description
       };
 
       const formData = new FormData();

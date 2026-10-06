@@ -49,7 +49,8 @@ export interface FAQItem {
 export interface PinnedSubject {
   code: string;
   name: string;
-  resourcesCount: number;
+  /** Derived from live data at render time; not persisted in the constant. */
+  resourcesCount?: number;
 }
 
 export interface User {

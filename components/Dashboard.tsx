@@ -20,6 +20,16 @@ const SearchOverlay = lazy(() => import('./SearchOverlay').then(m => ({ default:
 const LoginOverlay = lazy(() => import('./LoginOverlay').then(m => ({ default: m.LoginOverlay })));
 const ResourceViewer = lazy(() => import('./ResourceViewer').then(m => ({ default: m.ResourceViewer })));
 
+/** Read a JSON value from localStorage, falling back on absent/corrupt data. */
+const readStored = <T,>(key: string, fallback: T): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export const Dashboard: React.FC = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [showUpload, setShowUpload] = useState(false);
@@ -53,11 +63,11 @@ export const Dashboard: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => readStored<'dark' | 'light'>('uniarchive_theme', 'dark'));
 
-  // Library State (Pinned & Saved)
-  const [pinnedSubjects, setPinnedSubjects] = useState<PinnedSubject[]>(INITIAL_PINNED_SUBJECTS);
-  const [savedResourceIds, setSavedResourceIds] = useState<string[]>([]);
+  // Library State (Pinned & Saved) — restored from localStorage so it survives reloads.
+  const [pinnedSubjects, setPinnedSubjects] = useState<PinnedSubject[]>(() => readStored('uniarchive_pinned', INITIAL_PINNED_SUBJECTS));
+  const [savedResourceIds, setSavedResourceIds] = useState<string[]>(() => readStored<string[]>('uniarchive_saved', []));
 
   // Stats State
   const [courseStats, setCourseStats] = useState<CourseStats[]>([]);
@@ -124,6 +134,18 @@ export const Dashboard: React.FC = () => {
   // Since we filter on server, 'resources' is already 'filteredResources'
   const filteredResources = resources;
 
+  // Ticker / pinned numbers are derived from real data (no hardcoded placeholders).
+  const resourceCountFor = (code: string) =>
+    courseStats.find(s => s.courseCode === code)?.totalResources
+      ?? resources.filter(r => r.courseCode === code).length;
+
+  const pinnedWithCounts = pinnedSubjects.map(s => ({ ...s, resourcesCount: resourceCountFor(s.code) }));
+
+  const topRated = resources.reduce<Resource | null>(
+    (best, r) => (!best || r.qualityScore > best.qualityScore ? r : best),
+    null
+  );
+
   // --- NAVIGATION HANDLERS ---
 
   const handleNavigation = (mode: ViewMode, param?: string) => {
@@ -163,7 +185,16 @@ export const Dashboard: React.FC = () => {
   // Theme Toggle Effect
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('uniarchive_theme', JSON.stringify(theme));
   }, [theme]);
+
+  // Persist library state so pinned/saved selections survive a reload.
+  useEffect(() => {
+    localStorage.setItem('uniarchive_saved', JSON.stringify(savedResourceIds));
+  }, [savedResourceIds]);
+  useEffect(() => {
+    localStorage.setItem('uniarchive_pinned', JSON.stringify(pinnedSubjects));
+  }, [pinnedSubjects]);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -244,6 +275,7 @@ export const Dashboard: React.FC = () => {
           <UploadOverlay
             onClose={() => setShowUpload(false)}
             onUploadComplete={handleUploadComplete}
+            author={currentUser?.username}
           />
         )}
 
@@ -348,7 +380,7 @@ export const Dashboard: React.FC = () => {
           </div>
         ) : activeTab === ViewMode.LIBRARY ? (
           <Library
-            pinnedSubjects={pinnedSubjects}
+            pinnedSubjects={pinnedWithCounts}
             savedResources={resources.filter(r => savedResourceIds.includes(r.id))}
             onUnpinSubject={handleUnpinSubject}
             onUnsaveResource={(id) => setSavedResourceIds(prev => prev.filter(sid => sid !== id))}
@@ -379,7 +411,7 @@ export const Dashboard: React.FC = () => {
                   className="bg-uni-panel border border-uni-border px-3 py-1.5 flex items-center gap-3 hover:border-uni-neon hover:translate-y-[-2px] transition-all group"
                 >
                   <span className="font-bold text-uni-contrast text-sm">{sub.code}</span>
-                  <span className="text-[10px] text-uni-muted font-mono">{sub.resourcesCount} Res</span>
+                  <span className="text-[10px] text-uni-muted font-mono">{resourceCountFor(sub.code)} Res</span>
                 </button>
               ))}
               <button className="px-3 py-1.5 text-xs text-uni-muted border border-dashed border-uni-border hover:text-uni-contrast hover:border-uni-muted transition-colors">
@@ -390,10 +422,10 @@ export const Dashboard: React.FC = () => {
             {/* Stats Ticker */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
               {[
-                { label: 'Resources', value: resources.length + 1240, color: 'text-uni-contrast' },
-                { label: 'Hours Saved', value: '4.2k+', color: 'text-uni-neon' },
-                { label: 'Active Slots', value: '142', color: 'text-uni-contrast' },
-                { label: 'Trending', value: 'Hypothesis Testing', color: 'text-uni-contrast', icon: <Zap size={14} className="inline mr-1 text-uni-cyan" /> }
+                { label: 'Resources', value: resources.length, color: 'text-uni-contrast' },
+                { label: 'Courses', value: courseStats.length, color: 'text-uni-neon' },
+                { label: 'Slots', value: new Set(resources.map(r => r.slot)).size, color: 'text-uni-contrast' },
+                { label: 'Top Rated', value: topRated?.courseCode ?? '—', color: 'text-uni-contrast', icon: <Zap size={14} className="inline mr-1 text-uni-cyan" /> }
               ].map((stat, i) => (
                 <div key={i} className="bg-uni-panel border border-uni-border p-4 flex flex-col justify-center hover:border-uni-neon transition-colors group">
                   <span className="text-[10px] text-uni-muted uppercase tracking-wider font-mono mb-1 group-hover:text-uni-neon transition-colors">{stat.label}</span>

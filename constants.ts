@@ -39,7 +39,8 @@ export const FAQ_DATA: FAQItem[] = [
   }
 ];
 
+// Counts are derived from live data at render time (see Dashboard).
 export const INITIAL_PINNED_SUBJECTS: PinnedSubject[] = [
-  { code: 'BMAT202L', name: 'Prob & Stats', resourcesCount: 45 },
-  { code: 'CSE3001', name: 'Software Eng', resourcesCount: 78 }
+  { code: 'BMAT202L', name: 'Prob & Stats' },
+  { code: 'CSE3001', name: 'Software Eng' }
 ];

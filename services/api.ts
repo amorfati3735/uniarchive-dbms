@@ -1,7 +1,10 @@
-import { Resource, CourseStats, Comment, ResourceType } from '../types';
+import { Resource, CourseStats, Comment, ResourceType, User } from '../types';
 
-const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const API_URL = isLocal ? 'http://localhost:5000/api' : '/api';
+// Always call the API on a relative path: Vite proxies /api to the backend in
+// dev (vite.config.ts) and vercel.json rewrites it in production. This makes the
+// app work identically on localhost, a LAN address, or a deployed domain.
+// Set VITE_API_URL to point at a different origin.
+const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api';
 
 export const api = {
     // Resources
@@ -62,7 +65,7 @@ export const api = {
     },
 
     // Auth
-    sendOtp: async (email: string): Promise<any> => {
+    sendOtp: async (email: string): Promise<{ message: string }> => {
         const res = await fetch(`${API_URL}/auth/otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -75,7 +78,7 @@ export const api = {
         return res.json();
     },
 
-    verifyOtp: async (email: string, otp: string): Promise<any> => {
+    verifyOtp: async (email: string, otp: string): Promise<{ success: boolean; message: string; user?: User }> => {
         const res = await fetch(`${API_URL}/auth/verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

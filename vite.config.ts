@@ -9,6 +9,25 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        // The frontend always calls /api; forward it to the Express server so
+        // the app works on localhost and on a LAN address alike.
+        proxy: {
+          '/api': {
+            target: env.VITE_API_PROXY || 'http://localhost:5000',
+            changeOrigin: true,
+          },
+        },
+      },
+      // `vite preview` serves the built bundle and needs the same /api proxy.
+      preview: {
+        port: 4173,
+        host: '0.0.0.0',
+        proxy: {
+          '/api': {
+            target: env.VITE_API_PROXY || 'http://localhost:5000',
+            changeOrigin: true,
+          },
+        },
       },
       plugins: [react(), tailwindcss()],
       define: {

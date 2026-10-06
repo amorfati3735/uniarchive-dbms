@@ -68,6 +68,13 @@ param). Keep it that way — the repository casts the integer PK with `String()`
   bundle code-split (recharts + overlays deferred), mock data removed from the
   bundle, and API responses gzipped. Initial JS+CSS ~198 kB → ~95 kB gzip; the
   first paint fetches only `index.js`, `index.css` and `react.js`.
+- Correctness/cleanup pass: the deployment entry (`api/index.ts` → `server/src`)
+  was broken on Vercel because the root `package.json` still shipped `mongoose`
+  and had no `mysql2`/`compression` — root deps now mirror the server. Also:
+  OTP verification now creates a verified `users` row and throttles resends,
+  uploads are attributed to the signed-in user, theme/library persist across
+  reloads, the fake dashboard numbers were replaced with real data, the API has
+  a JSON 404 + error handler, and the app calls `/api` relatively (Vite proxy).
 
 **Not done / optional** (see §9): dedicated DB user, rendered ER image,
 Cloudinary/SMTP/NVIDIA credentials, any deployment.
@@ -118,6 +125,9 @@ npm install && npm run dev   # Vite, port 3000
    (camelCase fields, `id` not `resource_id`, ISO date strings, `topics` as a
    string array). If you change a response shape you **must** update the
    frontend types and `services/api.ts` in the same change.
+   The client calls `/api` **relatively** — Vite proxies it in dev
+   (`vite.config.ts`, both `server` and `preview`) and `vercel.json` rewrites it
+   in prod. Never hard-code `http://localhost:5000` in the frontend.
 7. **Schema changes** go in `db/schema.sql` (and `db/seed.sql`), and the
    repositories/tests must be updated to match.
 8. **Never commit `.env`** or real credentials. `.env.example` is tracked and
@@ -152,6 +162,12 @@ npm install && npm run dev   # Vite, port 3000
   contains that string and kills itself. Use `pgrep`/kill by PID, or a bracket
   pattern that the command line doesn't contain.
 - The Vite **dev server is on port 3000** (not 5173) and binds `0.0.0.0`.
+- **Root `package.json` intentionally mirrors the backend deps** (express 4,
+  mysql2, compression, multer, nodemailer, cloudinary). Vercel resolves
+  `server/src/*` from the *root* `node_modules`, so a new backend dependency must
+  be added to **both** `package.json` files or the deploy breaks.
+- Run the API detached so it survives across tool sessions:
+  `setsid nohup node dist/app.js > /tmp/ua_api.log 2>&1 < /dev/null &`
 - If a resource route renders the Discover page instead of the viewer, the API
   is returning numeric ids again — `Resource.id` must be a string.
 - `resources.upvotes/downloads/views` are **intentional** denormalized counters
@@ -187,6 +203,11 @@ add suppressions to make checks pass.
 - [ ] Deploy (Vercel config exists in `vercel.json` + `api/index.ts`).
 - [ ] Server-side pagination for `/api/resources` (currently returns everything).
 - [ ] Self-host the Google Fonts (3 families are still render-blocking).
+- [ ] Real sessions: OTP proves identity but issues no token, so the client
+      trusts a localStorage user object. Fine for the case study, not for prod.
+- [ ] Accessibility: several clickable `<div>`s should be `<button>`/links.
+- [ ] `/api/stats` always ships the 364-point activity grid even though only the
+      subject-detail view needs it.
 
 ## 10. Maintenance protocol (for agents)
 
@@ -204,3 +225,4 @@ add suppressions to make checks pass.
 |------|--------|
 | 2026-10-06 | Initial `AGENTS.md`. Recorded the MongoDB → MySQL port, 3NF schema (14 relations), repository layer, 24-test suite, docs, and publication to `amorfati3735/uniarchive-dbms`. |
 | 2026-10-06 | Performance pass: Tailwind v4 compiled build (CDN removed), code splitting (`Analytics`/overlays lazy, `manualChunks`), mock data dropped from the client, API gzip, native PDF viewer. Fixed `Resource.id` to be a string (was breaking `/resource/:id`). |
+| 2026-10-06 | Correctness/cleanup pass: fixed the broken Vercel deps (root now mirrors the server, no more mongoose), OTP creates a verified user + throttles resends, uploads attributed to the logged-in user, theme/library persisted, real dashboard stats (removed hardcoded numbers), configurable CORS + optional email-domain gate, JSON 404/error handler, graceful shutdown, relative `/api` + Vite proxy, `tw-animate-css` (the `animate-in` classes were no-ops), dead `uploads/` dir removed, auth tests added (29 total). |

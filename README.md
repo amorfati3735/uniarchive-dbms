@@ -75,8 +75,13 @@ verified against Vite's build output and a Chrome network log.
 cd server && npm test
 ```
 
-Runs 24 checks: schema/constraint/normalization validation and HTTP integration
-tests against every endpoint. `npm test` reseeds the database first.
+Runs 29 checks: schema/constraint/normalization validation, HTTP integration
+tests against every endpoint, and the OTP/auth repository. `npm test` reseeds
+the database first.
+
+The frontend always calls the API on a relative `/api` path — Vite proxies it
+to the backend during development (`vite.config.ts`), so the app works on
+`localhost` and on a LAN address alike.
 
 ## Project structure
 

@@ -39,17 +39,17 @@ export const LoginOverlay: React.FC<Props> = ({ onClose, onLogin }) => {
   const verifyCode = async () => {
     setIsLoading(true);
     try {
-      await api.verifyOtp(email, otpCode);
+      const result = await api.verifyOtp(email, otpCode);
 
-      // Success - Create User Object
-      const user: User = {
-        email: email,
+      // The server now creates/verifies the user row and returns it, so the
+      // username here matches the one stored against uploaded resources.
+      const user: User = result?.user ?? {
+        email,
         username: email.split('@')[0],
         isVerified: true,
-        role: 'student' // Default
+        role: 'student'
       };
 
-      // Save to LocalStorage
       localStorage.setItem('uniarchive_user', JSON.stringify(user));
 
       onLogin(user);
