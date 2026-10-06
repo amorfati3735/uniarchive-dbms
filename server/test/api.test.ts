@@ -88,7 +88,7 @@ test('free-text search matches title, course, professor and topic', async () => 
 test('GET /api/resources/:id includes the comment thread', async () => {
     const { status, body } = await getJson('/resources/1');
     assert.equal(status, 200);
-    assert.equal(body.id, 1);
+    assert.equal(body.id, '1');
     assert.ok(Array.isArray(body.comments));
     assert.equal(body.comments.length, 3);
     assert.equal(body.commentsCount, 3);

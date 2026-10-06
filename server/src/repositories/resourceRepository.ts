@@ -71,6 +71,9 @@ const RESOURCE_SELECT = `
 
 const mapRow = (row: any): ResourceDTO => ({
     ...row,
+    // The API contract (types.ts) uses string ids; the route param is a string
+    // too, so comparing `r.id === params.id` only works if we serialise as string.
+    id: String(row.id),
     qualityScore: Number(row.qualityScore),
     completeness: Number(row.completeness),
     upvotes: Number(row.upvotes),
@@ -93,12 +96,13 @@ const attachTopics = async (rows: ResourceDTO[]): Promise<ResourceDTO[]> => {
           ORDER BY t.topic_name`,
         rows.map(r => r.id)
     );
-    const byResource = new Map<number, string[]>();
+    const byResource = new Map<string, string[]>();
     for (const t of topicRows) {
-        if (!byResource.has(t.resource_id)) byResource.set(t.resource_id, []);
-        byResource.get(t.resource_id)!.push(t.topic_name);
+        const key = String(t.resource_id);
+        if (!byResource.has(key)) byResource.set(key, []);
+        byResource.get(key)!.push(t.topic_name);
     }
-    return rows.map(r => ({ ...r, topics: byResource.get(r.id) ?? [] }));
+    return rows.map(r => ({ ...r, topics: byResource.get(String(r.id)) ?? [] }));
 };
 
 const escapeLike = (value: string): string => value.replace(/[\\%_]/g, ch => `\\${ch}`);
