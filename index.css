@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Theme tokens.
+   `inline` keeps the utility value as `var(--uni-*)`, so theme switching via
+   [data-theme='light'] on <html> re-resolves at each element instead of being
+   frozen at :root.
+--------------------------------------------------------------------------- */
+@theme inline {
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-display: "Unbounded", sans-serif;
+  --font-sans: "Inter", sans-serif;
+
+  --color-uni-black: var(--uni-black);
+  --color-uni-dark: var(--uni-dark);
+  --color-uni-panel: var(--uni-panel);
+  --color-uni-border: var(--uni-border);
+  --color-uni-neon: var(--uni-neon);
+  --color-uni-cyan: var(--uni-cyan);
+  --color-uni-alert: var(--uni-alert);
+  --color-uni-text: var(--uni-text);
+  --color-uni-contrast: var(--uni-text-contrast);
+  --color-uni-muted: var(--uni-muted);
+
+  --shadow-hard: 4px 4px 0px 0px rgba(100, 100, 100, 0.1);
+  --shadow-hard-neon: 4px 4px 0px 0px var(--uni-neon);
+  --shadow-hard-cyan: 4px 4px 0px 0px var(--uni-cyan);
+}
+
+/* ---------------------------------------------------------------------------
+   Runtime palette (dark default, light override)
+--------------------------------------------------------------------------- */
+:root {
+  --uni-black: #050505;
+  --uni-dark: #0a0a0a;
+  --uni-panel: #111111;
+  --uni-border: #2a2a2a;
+  --uni-text: #e0e0e0;
+  --uni-text-contrast: #ffffff;
+  --uni-muted: #666666;
+
+  --uni-neon: #ccff00;
+  --uni-cyan: #00f0ff;
+  --uni-alert: #ff003c;
+}
+
+[data-theme='light'] {
+  --uni-black: #fafafa;
+  --uni-dark: #ffffff;
+  --uni-panel: #f4f4f5;
+  --uni-border: #e4e4e7;
+  --uni-text: #52525b;
+  --uni-text-contrast: #18181b;
+  --uni-muted: #a1a1aa;
+
+  /* Darken accents slightly for visibility on a light background */
+  --uni-neon: #65a30d;
+  --uni-cyan: #0891b2;
+  --uni-alert: #e11d48;
+}
+
+body {
+  background-color: var(--uni-black);
+  color: var(--uni-text);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--uni-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border: 1px solid var(--uni-black);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--uni-neon);
+}

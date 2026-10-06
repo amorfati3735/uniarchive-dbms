@@ -1,16 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Resource, ViewMode, ResourceType, PinnedSubject, User, CourseStats } from '../types';
 import { ResourceCard } from './ResourceCard';
-import { Heatmap } from './Heatmap';
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Filter, Search, Plus, Trophy, Grid, Layers, Zap, User as UserIcon, LogOut, Sun, Moon, Pin, Library as LibraryIcon } from 'lucide-react';
-import { MOCK_RESOURCES, MOCK_COURSE_STATS, INITIAL_PINNED_SUBJECTS } from '../constants';
-import { UploadOverlay } from './UploadOverlay';
-import { SearchOverlay } from './SearchOverlay';
-import { LoginOverlay } from './LoginOverlay';
+import { Filter, Search, Plus, Grid, Layers, Zap, User as UserIcon, LogOut, Sun, Moon, Pin, Library as LibraryIcon } from 'lucide-react';
+import { INITIAL_PINNED_SUBJECTS } from '../constants';
 import { SubjectDetail } from './SubjectDetail';
 import { FAQSection } from './FAQSection';
-import { ResourceViewer } from './ResourceViewer';
 import { Footer } from './Footer';
 import { Library } from './Library';
 
@@ -18,6 +12,13 @@ import { api } from '../services/api';
 import { MobileNav } from './MobileNav';
 
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+
+// Code-split: fetched only when the user actually opens these.
+const Analytics = lazy(() => import('./Analytics'));
+const UploadOverlay = lazy(() => import('./UploadOverlay').then(m => ({ default: m.UploadOverlay })));
+const SearchOverlay = lazy(() => import('./SearchOverlay').then(m => ({ default: m.SearchOverlay })));
+const LoginOverlay = lazy(() => import('./LoginOverlay').then(m => ({ default: m.LoginOverlay })));
+const ResourceViewer = lazy(() => import('./ResourceViewer').then(m => ({ default: m.ResourceViewer })));
 
 export const Dashboard: React.FC = () => {
   const [resources, setResources] = useState<Resource[]>([]);
@@ -114,7 +115,6 @@ export const Dashboard: React.FC = () => {
         setTopSlots(slots);
       } catch (error) {
         console.error("Failed to load stats:", error);
-        // Fallback to mocks handled safe?
       }
     };
     fetchStats();
@@ -217,12 +217,14 @@ export const Dashboard: React.FC = () => {
             </button>
           </nav>
           <main className="pt-16">
-            <ResourceViewer
-              resource={resource}
-              onBack={goBack}
-              isSaved={savedResourceIds.includes(resource.id)}
-              onToggleSave={toggleSaveResource}
-            />
+            <Suspense fallback={null}>
+              <ResourceViewer
+                resource={resource}
+                onBack={goBack}
+                isSaved={savedResourceIds.includes(resource.id)}
+                onToggleSave={toggleSaveResource}
+              />
+            </Suspense>
           </main>
         </div>
       );
@@ -237,27 +239,29 @@ export const Dashboard: React.FC = () => {
         backgroundSize: '40px 40px'
       }}></div>
 
-      {showUpload && (
-        <UploadOverlay
-          onClose={() => setShowUpload(false)}
-          onUploadComplete={handleUploadComplete}
-        />
-      )}
+      <Suspense fallback={null}>
+        {showUpload && (
+          <UploadOverlay
+            onClose={() => setShowUpload(false)}
+            onUploadComplete={handleUploadComplete}
+          />
+        )}
 
-      {isSearchOpen && (
-        <SearchOverlay
-          onClose={() => setIsSearchOpen(false)}
-          onSelectResource={openResource}
-          onSelectSubject={openSubject}
-        />
-      )}
+        {isSearchOpen && (
+          <SearchOverlay
+            onClose={() => setIsSearchOpen(false)}
+            onSelectResource={openResource}
+            onSelectSubject={openSubject}
+          />
+        )}
 
-      {isLoginOpen && (
-        <LoginOverlay
-          onClose={() => setIsLoginOpen(false)}
-          onLogin={(user) => setCurrentUser(user)}
-        />
-      )}
+        {isLoginOpen && (
+          <LoginOverlay
+            onClose={() => setIsLoginOpen(false)}
+            onLogin={(user) => setCurrentUser(user)}
+          />
+        )}
+      </Suspense>
 
       {/* Navbar */}
       <nav className="fixed top-0 w-full z-40 bg-uni-dark/90 backdrop-blur-md border-b border-uni-border h-16 flex items-center px-6 justify-between">
@@ -338,7 +342,7 @@ export const Dashboard: React.FC = () => {
             <SubjectDetail
               subjectCode={selectedSubject}
               resources={resources}
-              stats={MOCK_COURSE_STATS.find(s => s.courseCode === selectedSubject)}
+              stats={courseStats.find(s => s.courseCode === selectedSubject)}
               onBack={goBack}
             />
           </div>
@@ -518,59 +522,13 @@ export const Dashboard: React.FC = () => {
 
           </div>
         ) : (
-          <div className="animate-in fade-in duration-500 space-y-8 px-6 md:px-12">
-            <div className="flex justify-between items-end mb-8 border-b border-uni-border pb-4">
-              <div>
-                <h2 className="text-3xl font-display font-bold text-uni-contrast uppercase tracking-tight">System Analytics</h2>
-                <p className="text-uni-muted font-mono text-sm">Knowledge flow metrics</p>
-              </div>
-              <div className="flex gap-2">
-                {['7 DAYS', '30 DAYS', 'ALL TIME'].map(range => (
-                  <button key={range} className="px-3 py-1 border border-uni-border text-[10px] font-mono text-uni-muted hover:text-uni-contrast hover:border-uni-neon transition-colors bg-uni-panel">{range}</button>
-                ))}
-              </div>
+          <Suspense fallback={
+            <div className="px-6 md:px-12 py-24 text-center text-uni-muted font-mono text-xs uppercase animate-pulse">
+              Loading analytics…
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Slot Activity Chart */}
-              <div className="bg-uni-panel border border-uni-border p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-display font-bold text-uni-contrast flex items-center gap-2 uppercase">
-                    <Trophy size={18} className="text-uni-neon" /> Slot Dominance
-                  </h3>
-                  <span className="text-[10px] font-mono bg-uni-neon text-uni-black px-2 py-1 font-bold">ACTIVITY</span>
-                </div>
-                <div className="h-72 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={topSlots} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <XAxis dataKey="name" stroke="#666" fontSize={12} tickLine={false} axisLine={false} fontFamily="monospace" />
-                      <Tooltip
-                        cursor={{ fill: '#2a2a2a' }}
-                        contentStyle={{ backgroundColor: 'var(--uni-black)', border: '1px solid var(--uni-border)', color: 'var(--uni-text)', fontFamily: 'monospace' }}
-                      />
-                      <Bar dataKey="resources" fill="#333">
-                        {topSlots.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--uni-neon)' : index === 1 ? 'var(--uni-cyan)' : 'var(--uni-border)'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                  <p className="text-xs font-mono text-uni-muted mt-4 text-center uppercase border-t border-uni-border pt-2">B1 leads contributions. G2 highest quality.</p>
-                </div>
-              </div>
-
-              {/* Coverage Heatmap */}
-              <div className="bg-uni-panel border border-uni-border p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-display font-bold text-uni-contrast flex items-center gap-2 uppercase">
-                    <Grid size={18} className="text-uni-cyan" /> Syllabus Coverage
-                  </h3>
-                  <span className="text-[10px] font-mono bg-uni-cyan text-uni-black px-2 py-1 font-bold">DENSITY</span>
-                </div>
-                <Heatmap stats={MOCK_COURSE_STATS[0]} />
-              </div>
-            </div>
-          </div>
+          }>
+            <Analytics courseStats={courseStats} topSlots={topSlots} isLoading={isLoading} />
+          </Suspense>
         )}
       </main>
       <MobileNav

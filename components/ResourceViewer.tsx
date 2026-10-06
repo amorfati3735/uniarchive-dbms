@@ -98,7 +98,10 @@ export const ResourceViewer: React.FC<Props> = ({ resource, onBack, isSaved = fa
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(resource.pdfUrl || '')}&embedded=true`;
+  // Render the PDF with the browser's built-in viewer: no third-party embed,
+  // no extra network round-trip through docs.google.com, and it works offline
+  // for same-origin files.
+  const viewerUrl = `${resource.pdfUrl || ''}#view=FitH`;
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] animate-in fade-in slide-in-from-bottom-4 duration-300 relative">
@@ -182,9 +185,8 @@ export const ResourceViewer: React.FC<Props> = ({ resource, onBack, isSaved = fa
 
                 <iframe
                   src={viewerUrl}
-                  className="w-full flex-1"
+                  className="w-full flex-1 border-0"
                   title="PDF Viewer"
-                  frameBorder="0"
                 />
                 {!isFullscreen && (
                   <div className="bg-uni-black border-t border-uni-border p-2 text-center">

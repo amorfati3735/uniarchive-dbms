@@ -13,7 +13,7 @@ case study.
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 19 + Vite + TypeScript + Tailwind (CDN) |
+| Frontend | React 19 + Vite + TypeScript + Tailwind CSS v4 (compiled at build) |
 | Backend | Node.js + Express, `mysql2` connection pool |
 | Database | MySQL 8 / MariaDB — 14 tables in Third Normal Form |
 | File storage | Cloudinary (optional; needed only for uploads) |
@@ -48,11 +48,26 @@ npm run dev              # http://localhost:5000
 
 ```bash
 npm install
-npm run dev              # http://localhost:5173
+npm run dev              # http://localhost:3000
 ```
 
 The frontend talks to `http://localhost:5000/api` automatically when served
 from localhost.
+
+## Performance
+
+The front end was rebuilt for load speed:
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Initial JS + CSS (gzip) | ~198 kB | **~95 kB** |
+| CSS engine | Tailwind CDN script (~120 kB) + in-browser JIT on every load | compiled to a 7 kB gzip stylesheet at build time |
+| Chart library | bundled into the entry chunk (parsed on first paint) | deferred — `recharts` (~102 kB gzip) loads only when Analytics opens |
+| Overlays (upload / search / login / viewer) | in the entry chunk | lazy chunks, fetched on demand |
+| API responses | uncompressed | gzip via the `compression` middleware |
+
+The first paint fetches only `index.js`, `index.css` and `react.js`; this is
+verified against Vite's build output and a Chrome network log.
 
 ## Tests
 

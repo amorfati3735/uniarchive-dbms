@@ -22,7 +22,7 @@ study. The relational design is the point of the project now, not just the app.
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 19 + Vite + TypeScript, Tailwind via CDN |
+| Frontend | React 19 + Vite + TypeScript, Tailwind CSS v4 (compiled via `@tailwindcss/vite`) |
 | Backend | Node + Express 4 + `mysql2` (connection pool) |
 | Database | MySQL 8 / MariaDB — 14 relations in 3NF |
 
@@ -41,10 +41,15 @@ server/
   src/utils/            cloudinary, email
   test/                 node:test suites (schema + API)
 components/             React UI
+  Analytics.tsx         lazily loaded; the only importer of recharts
+index.css               Tailwind entry + @theme tokens + runtime palette
 services/api.ts         the ONLY place the frontend talks to the API
 types.ts                shared frontend types == API contract
 docs/case-study.md      the DBMS case study (all 11 required stages)
 ```
+
+`Resource.id` is a **string** on the wire (matches `types.ts` and the route
+param). Keep it that way — the repository casts the integer PK with `String()`.
 
 ## 3. Current status
 
@@ -59,6 +64,10 @@ docs/case-study.md      the DBMS case study (all 11 required stages)
 - API contract unchanged, so the React frontend needed no edits.
 - Published: **github.com/amorfati3735/uniarchive-dbms** (public).
   `origin` = that repo, `upstream` = the original `amorfati3735/uniarchive`.
+- Performance pass done: Tailwind CDN replaced with a compiled v4 build, entry
+  bundle code-split (recharts + overlays deferred), mock data removed from the
+  bundle, and API responses gzipped. Initial JS+CSS ~198 kB → ~95 kB gzip; the
+  first paint fetches only `index.js`, `index.css` and `react.js`.
 
 **Not done / optional** (see §9): dedicated DB user, rendered ER image,
 Cloudinary/SMTP/NVIDIA credentials, any deployment.
@@ -80,7 +89,7 @@ npm run build && npm start
 npm run typecheck
 
 # --- frontend (repo root) ---
-npm install && npm run dev   # Vite, default port 5173
+npm install && npm run dev   # Vite, port 3000
 ```
 
 ## 5. Environment specifics
@@ -113,7 +122,14 @@ npm install && npm run dev   # Vite, default port 5173
    repositories/tests must be updated to match.
 8. **Never commit `.env`** or real credentials. `.env.example` is tracked and
    must stay placeholder-only.
-9. Commits keep the original hackathon history; new commits are added on top.
+9. **Tailwind is compiled, not a CDN.** The theme lives in `index.css` under
+   `@theme inline`; add new design tokens there, never re-add
+   `<script src="https://cdn.tailwindcss.com">`. The runtime palette is the
+   `--uni-*` custom properties (`:root` = dark, `[data-theme=light]` = light).
+10. **Heavy UI must stay lazy.** `recharts` and the overlays are loaded via
+    `React.lazy`; keep new heavy deps out of the entry chunk (add a
+    `manualChunks` entry in `vite.config.ts` if needed).
+11. Commits keep the original hackathon history; new commits are added on top.
    **Do not backdate commits or fabricate history** — the repo is part of an
    academic submission and commits carry the AI co-author trailer.
 
@@ -135,6 +151,9 @@ npm install && npm run dev   # Vite, default port 5173
 - The `pkill` footgun: `pkill -f "dist/app.js"` matches the shell command that
   contains that string and kills itself. Use `pgrep`/kill by PID, or a bracket
   pattern that the command line doesn't contain.
+- The Vite **dev server is on port 3000** (not 5173) and binds `0.0.0.0`.
+- If a resource route renders the Discover page instead of the viewer, the API
+  is returning numeric ids again — `Resource.id` must be a string.
 - `resources.upvotes/downloads/views` are **intentional** denormalized counters
   (documented in `docs/case-study.md`). Don't "normalize" them away without
   updating the case study.
@@ -166,6 +185,8 @@ add suppressions to make checks pass.
 - [ ] Provide Cloudinary / SMTP / NVIDIA keys and verify upload + OTP + AI flows.
 - [ ] Add the architecture note to the user's global `~/AGENTS.md` if desired.
 - [ ] Deploy (Vercel config exists in `vercel.json` + `api/index.ts`).
+- [ ] Server-side pagination for `/api/resources` (currently returns everything).
+- [ ] Self-host the Google Fonts (3 families are still render-blocking).
 
 ## 10. Maintenance protocol (for agents)
 
@@ -182,3 +203,4 @@ add suppressions to make checks pass.
 | Date | Change |
 |------|--------|
 | 2026-10-06 | Initial `AGENTS.md`. Recorded the MongoDB → MySQL port, 3NF schema (14 relations), repository layer, 24-test suite, docs, and publication to `amorfati3735/uniarchive-dbms`. |
+| 2026-10-06 | Performance pass: Tailwind v4 compiled build (CDN removed), code splitting (`Analytics`/overlays lazy, `manualChunks`), mock data dropped from the client, API gzip, native PDF viewer. Fixed `Resource.id` to be a string (was breaking `/resource/:id`). |

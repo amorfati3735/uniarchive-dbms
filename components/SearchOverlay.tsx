@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Command, Zap, ArrowRight, Hash, BookOpen, User } from 'lucide-react';
-import { MOCK_RESOURCES, AVAILABLE_TOPICS } from '../constants';
+import { AVAILABLE_TOPICS } from '../constants';
+import { Resource } from '../types';
 import { api } from '../services/api';
 
 interface Props {
@@ -14,6 +15,7 @@ export const SearchOverlay: React.FC<Props> = ({ onClose, onSelectResource, onSe
   const [aiMode, setAiMode] = useState(false);
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [results, setResults] = useState<Resource[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -29,6 +31,25 @@ export const SearchOverlay: React.FC<Props> = ({ onClose, onSelectResource, onSe
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
+
+  // Live search against the API (debounced), instead of the old local mock array.
+  useEffect(() => {
+    const term = query.trim();
+    if (!term) {
+      setResults([]);
+      return;
+    }
+    const timeoutId = setTimeout(async () => {
+      try {
+        const data = await api.getResources({ search: term });
+        setResults(data);
+      } catch (err) {
+        console.error('Search failed:', err);
+        setResults([]);
+      }
+    }, 200);
+    return () => clearTimeout(timeoutId);
+  }, [query]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,14 +67,10 @@ export const SearchOverlay: React.FC<Props> = ({ onClose, onSelectResource, onSe
     }
   };
 
-  // Simple fuzzy logic for subjects/resources
-  const filteredSubjects = Array.from(new Set(MOCK_RESOURCES.map(r => r.courseCode)))
-    .filter(code => code.toLowerCase().includes(query.toLowerCase()))
-    .slice(0, 3);
-
-  const filteredResources = MOCK_RESOURCES
-    .filter(r => r.title.toLowerCase().includes(query.toLowerCase()) || r.topics.some(t => t.toLowerCase().includes(query.toLowerCase())))
-    .slice(0, 5);
+  // Subjects and resources are derived from the live API result set, so uploads
+  // and newly added material show up in search immediately.
+  const filteredSubjects = Array.from(new Set(results.map(r => r.courseCode))).slice(0, 3);
+  const filteredResources = results.slice(0, 5);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[20vh] bg-uni-black/80 backdrop-blur-sm p-4 font-mono">

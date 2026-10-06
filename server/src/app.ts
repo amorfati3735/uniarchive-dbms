@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -37,6 +38,7 @@ app.use(async (req, res, next) => {
     }
 });
 app.use(cors());
+app.use(compression());
 app.use(express.json());
 
 // Static folder not needed for Vercel/Cloudinary
