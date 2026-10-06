@@ -1,9 +1,8 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
-import connectDB from './config/db.js';
+import { connectDB, queryOne } from './config/db.js';
 import resourceRoutes from './routes/resourceRoutes.js';
 import statsRoutes from './routes/statsRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
@@ -55,29 +54,30 @@ app.get('/', (req, res) => {
 });
 
 // Health Check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+    let dbState = 'disconnected';
+    try {
+        await queryOne('SELECT 1 AS ok');
+        dbState = 'connected';
+    } catch {
+        dbState = 'error';
+    }
     res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
-        dbState: mongoose.connection.readyState
+        dbState
     });
 });
 
 const PORT = process.env.PORT || 5000;
 
-// Only listen if the file is run directly (not imported)
-// Only listen if the file is run directly (not imported) and NOT in Vercel
-if (process.env.VITE_API_URL === undefined && !process.env.VERCEL) {
-    // Simple heuristic: If VERCEL env is not set, we might be local.
-    // Or just check if we are being run by node directly?
-    // In ESM, require.main is not available.
-    // We can use a simpler check: if port is not 5000 (default) maybe? 
-    // Actually, just rely on this:
-    if (process.argv[1] && process.argv[1].endsWith('app.ts')) {
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-        });
-    }
+// Start the HTTP listener unless we are running as a serverless function.
+// On Vercel the app is imported and invoked per-request (see api/index.ts),
+// so it must not bind a port itself.
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
 }
 
 export default app;

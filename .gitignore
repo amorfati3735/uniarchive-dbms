@@ -24,4 +24,7 @@ dist-ssr
 *.sw?
 
 .env
-.env.example
+.env.local
+
+# Database dumps / local artifacts
+*.dump

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import Otp from '../models/Otp.js';
+import { upsertOtp, verifyAndConsumeOtp } from '../repositories/authRepository.js';
 import { sendEmail } from '../utils/email.js';
 
 // @desc    Send OTP to email
@@ -8,6 +8,7 @@ export const sendOtp = async (req: Request, res: Response) => {
     try {
         const { email } = req.body;
 
+        // University-domain restriction (enable for the real deployment):
         // if (!email || !email.endsWith('@vitstudent.ac.in')) {
         //     res.status(400).json({ message: 'Please use a valid VIT student email (@vitstudent.ac.in)' });
         //     return;
@@ -20,12 +21,8 @@ export const sendOtp = async (req: Request, res: Response) => {
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // Create or update OTP for this email
-        await Otp.findOneAndUpdate(
-            { email },
-            { otp, createdAt: Date.now() },
-            { upsert: true, new: true }
-        );
+        // One live OTP per email (upsert on the email primary key).
+        await upsertOtp(email, otp);
 
         await sendEmail(
             email,
@@ -46,10 +43,9 @@ export const verifyOtp = async (req: Request, res: Response) => {
     try {
         const { email, otp } = req.body;
 
-        const record = await Otp.findOne({ email, otp });
+        const ok = await verifyAndConsumeOtp(email, otp);
 
-        if (record) {
-            await Otp.deleteOne({ _id: record._id });
+        if (ok) {
             res.json({ success: true, message: 'Verification successful' });
         } else {
             res.status(400).json({ success: false, message: 'Invalid or expired OTP' });

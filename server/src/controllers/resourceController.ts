@@ -1,5 +1,11 @@
 import { Request, Response } from 'express';
-import Resource, { IResource } from '../models/Resource.js';
+import {
+    listResources,
+    getResourceById,
+    createResource,
+    incrementInteraction,
+    addComment
+} from '../repositories/resourceRepository.js';
 import { uploadToCloudinary } from '../utils/cloudinary.js';
 
 // @desc    Get all resources
@@ -7,17 +13,12 @@ import { uploadToCloudinary } from '../utils/cloudinary.js';
 export const getResources = async (req: Request, res: Response) => {
     try {
         const { type, slot, course, search } = req.query;
-        const query: any = {};
-
-        if (type && type !== 'ALL') query.type = type;
-        if (slot && slot !== 'ALL') query.slot = slot;
-        if (course) query.courseCode = { $regex: course, $options: 'i' };
-
-        if (search) {
-            query.$text = { $search: search as string };
-        }
-
-        const resources = await Resource.find(query).sort({ createdAt: -1 });
+        const resources = await listResources({
+            type: type as string,
+            slot: slot as string,
+            course: course as string,
+            search: search as string
+        });
         res.json(resources);
     } catch (error: any) {
         res.status(500).json({ message: error.message });
@@ -26,9 +27,9 @@ export const getResources = async (req: Request, res: Response) => {
 
 // @desc    Get single resource
 // @route   GET /api/resources/:id
-export const getResourceById = async (req: Request, res: Response) => {
+export const getResourceByIdHandler = async (req: Request, res: Response) => {
     try {
-        const resource = await Resource.findById(req.params.id);
+        const resource = await getResourceById(req.params.id);
         if (resource) {
             res.json(resource);
         } else {
@@ -41,11 +42,9 @@ export const getResourceById = async (req: Request, res: Response) => {
 
 // @desc    Create new resource
 // @route   POST /api/resources
-export const createResource = async (req: Request, res: Response) => {
+export const createResourceHandler = async (req: Request, res: Response) => {
     try {
-        // req.file contains the uploaded file
-        // req.body.data contains the JSON string of metadata
-
+        // req.file holds the uploaded file; req.body.data is the JSON metadata.
         if (!req.file) {
             res.status(400).json({ message: 'No file uploaded' });
             return;
@@ -56,10 +55,9 @@ export const createResource = async (req: Request, res: Response) => {
         let result;
         try {
             console.log('[Upload] Starting Cloudinary upload...');
-            // Determine resource type: 'image' for images, 'raw' for everything else (PDFs, Docs) to prevent corruption
+            // 'image' for images, 'raw' for everything else (PDFs, Docs) to prevent corruption.
             const isImage = req.file.mimetype.startsWith('image/');
             const resourceType = isImage ? 'image' : 'raw';
-
             result = await uploadToCloudinary(req.file.buffer, 'uniarchive', resourceType);
             console.log('[Upload] Cloudinary success:', result.secure_url);
         } catch (uploadError: any) {
@@ -68,14 +66,8 @@ export const createResource = async (req: Request, res: Response) => {
             return;
         }
 
-        const resource = new Resource({
-            ...metadata,
-            pdfUrl: result.secure_url,
-            author: 'You', // Mock user for now
-        });
-
-        const createdResource = await resource.save();
-        res.status(201).json(createdResource);
+        const created = await createResource(metadata, result.secure_url, 'You');
+        res.status(201).json(created);
     } catch (error: any) {
         console.error('[CreateResource] Error:', error);
         res.status(500).json({ message: error.message });
@@ -84,36 +76,22 @@ export const createResource = async (req: Request, res: Response) => {
 
 // @desc    Increment interaction counters
 // @route   POST /api/resources/:id/:action
-export const updateInteraction = async (req: Request, res: Response) => {
+export const updateInteractionHandler = async (req: Request, res: Response) => {
     try {
         const { id, action } = req.params;
-        const resource = await Resource.findById(id);
+        const valid = ['view', 'download', 'upvote', 'downvote'];
+        if (!valid.includes(action)) {
+            res.status(400).json({ message: 'Invalid action' });
+            return;
+        }
 
-        if (!resource) {
+        const result = await incrementInteraction(id, action as any);
+        if (!result) {
             res.status(404).json({ message: 'Resource not found' });
             return;
         }
 
-        switch (action) {
-            case 'view':
-                resource.views = (resource.views || 0) + 1;
-                break;
-            case 'download':
-                resource.downloads = (resource.downloads || 0) + 1;
-                break;
-            case 'upvote':
-                resource.upvotes = (resource.upvotes || 0) + 1;
-                break;
-            case 'downvote': // Optional
-                resource.upvotes = (resource.upvotes || 0) - 1;
-                break;
-            default:
-                res.status(400).json({ message: 'Invalid action' });
-                return;
-        }
-
-        await resource.save();
-        res.json({ success: true, [action + 's']: resource[action as keyof IResource] });
+        res.json({ success: true, [action + 's']: result.value });
     } catch (error: any) {
         res.status(500).json({ message: error.message });
     }
@@ -121,27 +99,20 @@ export const updateInteraction = async (req: Request, res: Response) => {
 
 // @desc    Add comment
 // @route   POST /api/resources/:id/comments
-export const addComment = async (req: Request, res: Response) => {
+export const addCommentHandler = async (req: Request, res: Response) => {
     try {
         const { text, author } = req.body;
-        const resource = await Resource.findById(req.params.id);
-
-        if (resource) {
-            const comment = {
-                id: new Date().getTime().toString(), // Simple ID generation
-                text,
-                author: author || 'Anonymous',
-                timestamp: new Date(),
-                upvotes: 0,
-                isOp: false // Logic to check if author is resource author can be added here
-            };
-
-            resource.comments.unshift(comment as any);
-            await resource.save();
-            res.status(201).json(comment);
-        } else {
-            res.status(404).json({ message: 'Resource not found' });
+        if (!text || !String(text).trim()) {
+            res.status(400).json({ message: 'Comment text is required' });
+            return;
         }
+
+        const comment = await addComment(req.params.id, String(text).trim(), author || 'Anonymous');
+        if (!comment) {
+            res.status(404).json({ message: 'Resource not found' });
+            return;
+        }
+        res.status(201).json(comment);
     } catch (error: any) {
         res.status(500).json({ message: error.message });
     }
