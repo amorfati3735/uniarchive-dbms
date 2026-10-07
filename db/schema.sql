@@ -45,12 +45,13 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE `users` (
-    user_id     INT           NOT NULL AUTO_INCREMENT,
-    username    VARCHAR(100)  NOT NULL,
-    email       VARCHAR(255)  NOT NULL,
-    role        ENUM('student','admin') NOT NULL DEFAULT 'student',
-    is_verified TINYINT(1)    NOT NULL DEFAULT 0,
-    created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_id         INT           NOT NULL AUTO_INCREMENT,
+    username        VARCHAR(100)  NOT NULL,
+    email          VARCHAR(255)  NOT NULL,
+    password_hash   VARCHAR(128)  NOT NULL DEFAULT '',
+    role            ENUM('student','admin') NOT NULL DEFAULT 'student',
+    is_verified     TINYINT(1)    NOT NULL DEFAULT 0,
+    created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id),
     UNIQUE KEY uq_users_username (username),
     UNIQUE KEY uq_users_email (email),

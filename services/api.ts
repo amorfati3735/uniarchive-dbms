@@ -91,6 +91,24 @@ export const api = {
         return res.json();
     },
 
+    /** Password login for the demo account.
+     *  Body: { username, password }
+     *  Demo credential: admin123 / scse
+     *  Returns { success, message, user } on success (same shape as verifyOtp).
+     */
+    login: async (username: string, password: string): Promise<{ success: boolean; message: string; user?: User }> => {
+        const res = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const body = await res.json();
+        if (!res.ok) {
+            throw new Error(body.message || 'Login failed');
+        }
+        return body as { success: boolean; message: string; user?: User };
+    },
+
     // AI Assistant
     askAI: async (query: string): Promise<string> => {
         const res = await fetch(`${API_URL}/ai/ask`, {

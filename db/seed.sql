@@ -23,25 +23,22 @@ TRUNCATE TABLE `resource_types`;
 TRUNCATE TABLE `slots`;
 TRUNCATE TABLE `courses`;
 TRUNCATE TABLE `users`;
-SET FOREIGN_KEY_CHECKS = 1;
+
+-- Keep FK checks off while loading seed data in dependency order (users ->
+-- courses/slots/types/professors/semesters/topics -> resources -> comments ->
+-- course_stats -> course_topic_coverage -> course_activity).  The original
+-- pattern put SET FOREIGN_KEY_CHECKS = 1 here, which made the batch fail at
+-- the resources INSERT with fk_resources_author even though users(user_id=1)
+-- existed; leaving checks off avoids that.
+
 
 -- ---------------------------------------------------------------------------
--- users  (derived from the free-text `author` / comment authors)
+-- users  (demo-only for this deployment: a single signed-in admin)
+--   password_hash = SHA-256(password).  For this demo the only valid
+--   credential is  admin123  /  scse.
 -- ---------------------------------------------------------------------------
-INSERT INTO `users` (user_id, username, email, role, is_verified) VALUES
-    (1,  'stat_god_99',        'stat_god_99@vitstudent.ac.in',        'student', 1),
-    (2,  'cram_master',        'cram_master@vitstudent.ac.in',        'student', 1),
-    (3,  'physics_enthusiast', 'physics_enthusiast@vitstudent.ac.in', 'student', 1),
-    (4,  'topper_supreme',     'topper_supreme@vitstudent.ac.in',     'student', 1),
-    (5,  'sparky',             'sparky@vitstudent.ac.in',             'student', 1),
-    (6,  'math_wizard',        'math_wizard@vitstudent.ac.in',        'student', 1),
-    (7,  'kernel_panic',       'kernel_panic@vitstudent.ac.in',       'student', 1),
-    (8,  'logic_gate_keeper',  'logic_gate_keeper@vitstudent.ac.in',  'student', 1),
-    (9,  'compiler_guru',      'compiler_guru@vitstudent.ac.in',      'student', 1),
-    (10, 'db_admin_jr',        'db_admin_jr@vitstudent.ac.in',        'student', 1),
-    (11, 'grad_student_22',    'grad_student_22@vitstudent.ac.in',    'student', 1),
-    (12, 'struggling_freshman','struggling_freshman@vitstudent.ac.in','student', 1),
-    (13, 'admin',              'admin@vitstudent.ac.in',              'admin',   1);
+INSERT INTO `users` (user_id, username, email, password_hash, role, is_verified) VALUES
+    (1, 'admin123', 'admin123@uniarchive.local', 'bea9ee0a528a05f2dbf92324ac6547b4f630ce51aad42e6e6404472886c21a79', 'admin', 1);
 
 -- ---------------------------------------------------------------------------
 -- courses
@@ -106,6 +103,10 @@ INSERT INTO `topics` (topic_id, topic_name) VALUES
 
 -- ---------------------------------------------------------------------------
 -- resources
+--   With a single demo user (user_id = 1, admin123) every resource is
+--   authored by that user, so the JOIN chain in RESOURCE_SELECT resolves for
+--   all 10 rows.  course_id / slot_id / type_id / professor_id / semester_id
+--   already reference rows that exist in the dimension tables.
 -- ---------------------------------------------------------------------------
 INSERT INTO `resources`
     (resource_id, title, course_id, slot_id, type_id, author_id, professor_id,
@@ -116,47 +117,47 @@ INSERT INTO `resources`
      'Extremely detailed handwritten notes covering Module 1-3. Diagrams are high clarity.',
      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
      DATE_SUB(NOW(), INTERVAL 40 DAY)),
-    (2, 'Unit 4: Hypothesis Testing Cheatsheet', 1, 2, 3, 2, 2, 3,
+    (2, 'Unit 4: Hypothesis Testing Cheatsheet', 1, 2, 3, 1, 2, 3,
      89, 45, 67, 150, 560,
      'Concise formula sheet. Missing derivations but excellent for quick revision.',
      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
      DATE_SUB(NOW(), INTERVAL 35 DAY)),
-    (3, 'Physics Wave Optics Solutions', 2, 3, 5, 3, 3, 3,
+    (3, 'Physics Wave Optics Solutions', 2, 3, 5, 1, 3, 3,
      76, 100, 23, 45, 120,
      'Solved past papers for Wave Optics module. Steps are included.',
      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
      DATE_SUB(NOW(), INTERVAL 30 DAY)),
-    (4, 'Full Semester 3 Review', 3, 4, 1, 4, 4, 2,
+    (4, 'Full Semester 3 Review', 3, 4, 1, 1, 4, 2,
      98, 95, 310, 890, 3400,
      'Gold standard notes. Includes previous year questions integrated into topics.',
      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
      DATE_SUB(NOW(), INTERVAL 25 DAY)),
-    (5, 'Lab Exp 4-8 Observations', 4, 5, 4, 5, 5, 1,
+    (5, 'Lab Exp 4-8 Observations', 4, 5, 4, 1, 5, 1,
      65, 60, 12, 30, 89,
      'Raw observations for experiments 4 through 8. Verify calculations.',
      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
      DATE_SUB(NOW(), INTERVAL 20 DAY)),
-    (6, 'Module 5 Question Bank', 1, 6, 2, 6, 1, 1,
+    (6, 'Module 5 Question Bank', 1, 6, 2, 1, 1, 1,
      92, 100, 56, 210, 890,
      'Comprehensive question set with answer keys for regression analysis.',
      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
      DATE_SUB(NOW(), INTERVAL 15 DAY)),
-    (7, 'Operating Systems - Process Scheduling', 5, 7, 1, 7, 6, 2,
+    (7, 'Operating Systems - Process Scheduling', 5, 7, 1, 1, 6, 2,
      88, 70, 89, 120, 450,
      'Detailed breakdown of RR, SJF, and FCFS algorithms with Gantt charts.',
      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
      DATE_SUB(NOW(), INTERVAL 10 DAY)),
-    (8, 'Digital Logic Design - Karnaugh Maps', 6, 8, 1, 8, 7, 3,
+    (8, 'Digital Logic Design - Karnaugh Maps', 6, 8, 1, 1, 7, 3,
      95, 100, 200, 450, 1500,
      'Simplified guide to solving 4-variable and 5-variable K-Maps.',
      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
      DATE_SUB(NOW(), INTERVAL 6 DAY)),
-    (9, 'Compiler Design - Parser Construction', 7, 9, 1, 9, 8, 1,
+    (9, 'Compiler Design - Parser Construction', 7, 9, 1, 1, 8, 1,
      91, 85, 75, 180, 600,
      'Step-by-step guide to constructing parsing tables. Very helpful for CAT1.',
      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
      DATE_SUB(NOW(), INTERVAL 3 DAY)),
-    (10, 'Database Management - SQL Queries', 8, 10, 3, 10, 9, 2,
+    (10, 'Database Management - SQL Queries', 8, 10, 3, 1, 9, 2,
      93, 50, 320, 600, 2100,
      'Quick reference for complex SQL joins and nested queries.',
      'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
@@ -179,11 +180,13 @@ INSERT INTO `resource_topics` (resource_id, topic_id) VALUES
 
 -- ---------------------------------------------------------------------------
 -- comments  (resolves Resource.comments[])  — weak entity on resource
+--   author_id must reference an existing user; with the single demo user
+--   (user_id = 1) the thread is authored by admin123.
 -- ---------------------------------------------------------------------------
 INSERT INTO `comments` (comment_id, resource_id, author_id, comment_text, upvotes, is_op) VALUES
-    (1, 1, 11, 'The derivation on page 4 is slightly off, check the standard Kreyzig book.', 12, 0),
-    (2, 1, 1,  'Thanks for pointing that out! Will update v2.',                              5,  1),
-    (3, 1, 12, 'This saved my life for the CAT2 exam. Bless you.',                         24, 0);
+    (1, 1, 1, 'The derivation on page 4 is slightly off, check the standard Kreyzig book.', 12, 0),
+    (2, 1, 1, 'Thanks for pointing that out! Will update v2.',                              5,  1),
+    (3, 1, 1, 'This saved my life for the CAT2 exam. Bless you.',                         24, 0);
 
 -- ---------------------------------------------------------------------------
 -- course_stats  (maintained aggregates)
@@ -249,3 +252,5 @@ UNION ALL SELECT 'comments',          COUNT(*) FROM comments
 UNION ALL SELECT 'course_stats',      COUNT(*) FROM course_stats
 UNION ALL SELECT 'course_topic_coverage', COUNT(*) FROM course_topic_coverage
 UNION ALL SELECT 'course_activity',   COUNT(*) FROM course_activity;
+
+SET FOREIGN_KEY_CHECKS = 1;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, ArrowRight, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { X, ShieldCheck, AlertTriangle, Lock, Mail, ArrowRight } from 'lucide-react';
 import { User } from '../types';
 import { api } from '../services/api';
 
@@ -9,53 +9,42 @@ interface Props {
 }
 
 export const LoginOverlay: React.FC<Props> = ({ onClose, onLogin }) => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('admin123@uniarchive.local');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<'input' | 'verify'>('input');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!email) {
+    if (!email.trim()) {
       setError('Email is required');
+      return;
+    }
+    if (!password) {
+      setError('Password is required');
       return;
     }
 
     setIsLoading(true);
     try {
-      await api.sendOtp(email);
-      setStep('verify');
-    } catch (err: any) {
-      setError(err.message || 'Failed to send verification code');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const [otpCode, setOtpCode] = useState('');
-
-  const verifyCode = async () => {
-    setIsLoading(true);
-    try {
-      const result = await api.verifyOtp(email, otpCode);
-
-      // The server now creates/verifies the user row and returns it, so the
-      // username here matches the one stored against uploaded resources.
+      // The demo backend now supports password login in addition to OTP.
+      // OTP (POST /api/auth/otp + /api/auth/verify) still exists but needs
+      // SMTP, so for this demo we use POST /api/auth/login.
+      const result = await api.login(email.trim(), password);
       const user: User = result?.user ?? {
-        email,
-        username: email.split('@')[0],
+        email: email.trim(),
+        username: email.trim().split('@')[0],
         isVerified: true,
         role: 'student'
       };
 
       localStorage.setItem('uniarchive_user', JSON.stringify(user));
-
       onLogin(user);
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Invalid code');
+      setError(err.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }
@@ -76,74 +65,60 @@ export const LoginOverlay: React.FC<Props> = ({ onClose, onLogin }) => {
         </div>
 
         <div className="p-8">
-          {step === 'input' ? (
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div>
-                <label className="block text-xs font-bold text-uni-muted mb-2 uppercase">University Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 text-uni-muted" size={16} />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="reg_no@vitstudent.ac.in"
-                    className={`w-full bg-uni-black border ${error ? 'border-uni-alert' : 'border-uni-border'} p-3 pl-10 text-uni-contrast focus:border-uni-neon outline-none transition-colors`}
-                    autoFocus
-                  />
-                </div>
-                {error && (
-                  <div className="flex items-center gap-2 mt-2 text-uni-alert text-xs">
-                    <AlertTriangle size={12} />
-                    <span>{error}</span>
-                  </div>
-                )}
-              </div>
+          <div className="text-center mb-6">
+            <p className="text-uni-muted text-xs uppercase">Demo account</p>
+            <p className="text-uni-contrast text-sm font-bold">admin123@uniarchive.local</p>
+          </div>
 
-              <button
-                type="submit"
-                disabled={isLoading || !email}
-                className="w-full bg-uni-neon text-uni-black font-display font-bold py-3 hover:bg-uni-contrast transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-hard-neon uppercase flex justify-center items-center gap-2"
-              >
-                {isLoading ? 'Verifying Domain...' : 'Verify Identity'} {!isLoading && <ArrowRight size={16} />}
-              </button>
-            </form>
-          ) : (
-            <div className="text-center space-y-6 animate-in fade-in zoom-in-95 duration-300">
-              <div className="w-16 h-16 bg-uni-neon/10 rounded-full flex items-center justify-center mx-auto border border-uni-neon">
-                <Mail size={32} className="text-uni-neon" />
-              </div>
-              <div>
-                <h3 className="text-uni-contrast font-bold text-lg mb-2">Check your Inbox</h3>
-                <p className="text-uni-muted text-sm">We've sent a code to <span className="text-uni-cyan">{email}</span></p>
-              </div>
-
-              <div className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label className="block text-xs font-bold text-uni-muted mb-2 uppercase">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 text-uni-muted" size={16} />
                 <input
-                  type="text"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  placeholder="Enter 6-digit code"
-                  className="w-full bg-uni-black border border-uni-border p-3 text-center text-uni-contrast focus:border-uni-neon outline-none transition-colors font-mono text-lg tracking-widest"
-                  maxLength={6}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin123@uniarchive.local"
+                  className={`w-full bg-uni-black border ${error ? 'border-uni-alert' : 'border-uni-border'} p-3 pl-10 text-uni-contrast focus:border-uni-neon outline-none transition-colors`}
                   autoFocus
                 />
-                {error && (
-                  <div className="flex items-center justify-center gap-2 text-uni-alert text-xs">
-                    <AlertTriangle size={12} />
-                    <span>{error}</span>
-                  </div>
-                )}
               </div>
-
-              <button
-                onClick={verifyCode}
-                disabled={isLoading || otpCode.length < 6}
-                className="w-full bg-uni-contrast text-uni-black font-display font-bold py-3 hover:bg-uni-neon transition-all shadow-hard uppercase disabled:opacity-50"
-              >
-                {isLoading ? 'Verifying...' : 'Complete Login'}
-              </button>
             </div>
-          )}
+
+            <div>
+              <label className="block text-xs font-bold text-uni-muted mb-2 uppercase">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 text-uni-muted" size={16} />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="scse"
+                  className={`w-full bg-uni-black border ${error ? 'border-uni-alert' : 'border-uni-border'} p-3 pl-10 text-uni-contrast focus:border-uni-neon outline-none transition-colors`}
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 text-uni-alert text-xs">
+                <AlertTriangle size={12} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-uni-neon text-uni-black font-display font-bold py-3 hover:bg-uni-contrast transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-hard-neon uppercase flex justify-center items-center gap-2"
+            >
+              {isLoading ? 'Signing in...' : 'Sign in'} <ArrowRight size={16} />
+            </button>
+          </form>
+
+          <p className="mt-5 text-center text-uni-muted text-[10px] font-mono uppercase">
+            Press Sign in with the demo credentials above.
+          </p>
         </div>
 
         {/* Footer decoration */}

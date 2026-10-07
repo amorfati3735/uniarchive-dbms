@@ -1,7 +1,40 @@
 import { queryOne, execute } from '../config/db.js';
+import { createHash } from 'crypto';
 
 const OTP_TTL_SECONDS = 600;      // a code is valid for 10 minutes
 const OTP_RESEND_SECONDS = 60;    // ...and a new one can be requested after 1 minute
+
+/**
+ * Demo password storage (NOT production-grade): the seed stores
+ *   password_hash = SHA-256('' || password)
+ * i.e. an empty salt, so the comparison at login is a straight SHA-256 of the
+ * supplied password.  Only one demo user (admin123 / scse) is configured.
+ */
+const demoPasswordHash = (password: string): string =>
+    createHash('sha256').update(password).digest('hex');
+
+/**
+ * Authenticate a username + password pair.  Returns the public user shape on
+ * success or null on failure.  The password arrives in plaintext in the login
+ * request body — the server is the only place that hashes it.
+ */
+export const authenticateUser = async (
+    username: string,
+    password: string
+): Promise<{ email: string; username: string; role: string; isVerified: boolean } | null> => {
+    const row = await queryOne<{
+        user_id: number; username: string; email: string;
+        password_hash: string; role: string
+    }>(
+        'SELECT user_id, username, email, password_hash, role FROM users WHERE username = ? AND password_hash <> \'\'',
+        [username.trim()]
+    );
+
+    if (!row) return null;
+    if (row.password_hash !== demoPasswordHash(password)) return null;
+
+    return { email: row.email, username: row.username, role: row.role, isVerified: true };
+};
 
 /** Create or refresh the OTP for an email address (single live OTP per email). */
 export const upsertOtp = async (email: string, otp: string): Promise<void> => {
