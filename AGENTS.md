@@ -198,8 +198,14 @@ npm install && npm run dev   # Vite, port 3000
     `React.lazy`; keep new heavy deps out of the entry chunk (add a
     `manualChunks` entry in `vite.config.ts` if needed).
 11. Commits keep the original hackathon history; new commits are added on top.
-   **Do not backdate commits or fabricate history** — the repo is part of an
-   academic submission and commits carry the AI co-author trailer.
+   **Do not backdate commits or fabricate history.**
+12. **Do NOT add a code agent / AI assistant as a co-author or contributor.**
+   This repo is a personal college submission. Commit messages must not contain
+   `Co-Authored-By: <agent>` trailers or `Generated with <agent>` lines, and no
+   agent account may be added under *Settings → Collaborators*. Agents working
+   in this repo should commit plainly, with no such footer. (11 older commits in
+   this history do carry the trailer — they are historical, not a precedent, and
+   rewriting them would require a force-push.)
 
 ## 7. Gotchas / failure modes
 
@@ -326,6 +332,7 @@ add suppressions to make checks pass.
 | 2026-10-06 | Initial `AGENTS.md`. Recorded the MongoDB → MySQL port, 3NF schema (14 relations), repository layer, 24-test suite, docs, and publication to `amorfati3735/uniarchive-dbms`. |
 | 2026-10-06 | Performance pass: Tailwind v4 compiled build (CDN removed), code splitting (`Analytics`/overlays lazy, `manualChunks`), mock data dropped from the client, API gzip, native PDF viewer. Fixed `Resource.id` to be a string (was breaking `/resource/:id`). |
 | 2026-10-06 | Correctness/cleanup pass: fixed the broken Vercel deps (root now mirrors the server, no more mongoose), OTP creates a verified user + throttles resends, uploads attributed to the logged-in user, theme/library persisted, real dashboard stats (removed hardcoded numbers), configurable CORS + optional email-domain gate, JSON 404/error handler, graceful shutdown, relative `/api` + Vite proxy, `tw-animate-css` (the `animate-in` classes were no-ops), dead `uploads/` dir removed, auth tests added (29 total). |
+| 2026-10-09 | Added §6.12: do not credit a code agent as a co-author/contributor, and do not add such trailers to commit messages (college submission). |
 | 2026-10-09 | Hardening pass: `npm test` now seeds/drops `test_uniarchive_test` (via `DB_NAME` substitution in `seed.ts`) instead of the dev DB, so running tests no longer destroys uploads. Fixed the flaky `schema.test.ts` UNIQUE test to create its own colliding row (it had assumed a seed user removed in `f71895e`) — suite is now 29/29. Preview endpoint gained `Accept-Ranges`/`206`/`416` byte-range support and a bounded in-process cache. `vite.config.ts` default proxy reverted to the documented `localhost:5000`, with the local override moved to a gitignored root `.env` (`VITE_API_PROXY`). `.gitignore` hardened (`.env.*` with `!.env.example`, `*.pem`, `*.key`). |
 | 2026-10-09 | PDF preview + dev-server fixes: added `GET /api/resources/:id/preview` (inline disposition + magic-byte content sniffing + `no-store`) and pointed `ResourceViewer` at it — uploads were downloading instead of rendering because Cloudinary serves `raw` PDFs as `attachment`/`octet-stream`. Fixed the `tsx watch` SIGTERM respawn loop in `server/src/app.ts` and parsed `PORT` as a number. `LoginOverlay` now authenticates with the username (`admin123`), not the email. Vite's `/api` proxy targets 5001 to match the local `.env`. Superseded the `.env` work below. |
 | 2026-10-07 | Demo password login (branch `feature/demo-login`, commit `f71895e`): added `POST /api/auth/login` (admin123/scse, SHA-256 password, demo-only), rewrote `LoginOverlay` to a single email+password form, fenced OTP endpoints behind `smtpReady()` (503 when SMTP absent), added `password_hash` to `users`, collapsed seed to one user, and fixed two seed bugs that made `db:reset` import 0–1 resources (FK-checks-off-through-data-load + all resources use author_id=1). Imported Cloudinary/SMTP/NVIDIA keys from `downloads/random shi/uniarchive/server/.env` into `server/.env` (gitignored). Verified Cloudinary works; SMTP (535 5.7.8) and NVIDIA (JSON parse error on Bearer) keys are bad and need regeneration. |
