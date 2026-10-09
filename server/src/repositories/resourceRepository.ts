@@ -176,6 +176,15 @@ export const getResourceById = async (id: number | string): Promise<ResourceDTO 
     return resource;
 };
 
+/** Just the stored file URL, used by the inline preview proxy. */
+export const getResourceFileUrl = async (id: number | string): Promise<string | null> => {
+    const row = await queryOne<{ pdf_url: string }>(
+        'SELECT pdf_url FROM resources WHERE resource_id = ?',
+        [id]
+    );
+    return row?.pdf_url ?? null;
+};
+
 /** Increment a view / download / upvote counter and return the new value. */
 export const incrementInteraction = async (
     id: number | string,

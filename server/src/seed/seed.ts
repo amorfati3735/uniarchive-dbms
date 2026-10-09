@@ -20,11 +20,16 @@ const REPO_ROOT = path.resolve(__dirname, '../../..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'db', 'schema.sql');
 const SEED_FILE = path.join(REPO_ROOT, 'db', 'seed.sql');
 
+// The SQL files hard-code `test_uniarchive` (deliberate: the DBMS case study
+// documents that schema).  When DB_NAME points somewhere else -- notably the
+// test suite, which must not touch the dev database -- rewrite the identifier.
+const TARGET_DB = process.env.DB_NAME || 'test_uniarchive';
+
 const runFile = async (conn: mysql.Connection, label: string, file: string) => {
-    const sql = await fs.readFile(file, 'utf8');
-    console.log(`[seed] applying ${label} (${path.relative(REPO_ROOT, file)})...`);
-    const statements = sql; // multipleStatements is enabled on the connection
-    await conn.query(statements);
+    const raw = await fs.readFile(file, 'utf8');
+    const statements = raw.replace(/`test_uniarchive`/g, `\`${TARGET_DB}\``);
+    console.log(`[seed] applying ${label} (${path.relative(REPO_ROOT, file)}) -> ${TARGET_DB}...`);
+    await conn.query(statements); // multipleStatements is enabled on the connection
 };
 
 const seed = async () => {

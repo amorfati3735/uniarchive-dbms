@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import {
     listResources,
     getResourceById,
+    getResourceFileUrl,
     createResource,
     incrementInteraction,
     addComment
@@ -21,6 +22,138 @@ export const getResources = async (req: Request, res: Response) => {
         });
         res.json(resources);
     } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Stream a resource's file inline so the browser previews it
+// @route   GET /api/resources/:id/preview
+//
+// Uploads live on Cloudinary (and seeded rows point at external hosts).  Those
+// hosts serve files with `Content-Disposition: attachment`, so embedding the
+// URL directly makes the browser download it.  We re-serve the bytes from our
+// own origin with `Content-Disposition: inline` instead.
+interface PreviewEntry {
+    body: Buffer;
+    contentType: string;
+    isPdf: boolean;
+    expires: number;
+}
+
+/**
+ * Tiny in-process cache so repeatedly opening the same resource does not
+ * re-download it from Cloudinary every time.  Bounded by entry count and TTL;
+ * a demo-scale trade-off, not a CDN.
+ */
+const PREVIEW_TTL_MS = 5 * 60 * 1000;
+const PREVIEW_MAX_ENTRIES = 64;
+const previewCache = new Map<string, PreviewEntry>();
+
+const loadPreview = async (id: string, fileUrl: string): Promise<PreviewEntry> => {
+    const cached = previewCache.get(id);
+    if (cached && cached.expires > Date.now()) return cached;
+
+    const upstream = await fetch(fileUrl);
+    if (!upstream.ok) {
+        const err: any = new Error(`Upstream responded ${upstream.status}`);
+        err.status = 502;
+        throw err;
+    }
+
+    const body = Buffer.from(await upstream.arrayBuffer());
+    const upstreamType = (upstream.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+
+    // Cloudinary serves `raw` assets -- which is how PDFs are uploaded here --
+    // as `application/octet-stream` with no extension in the URL.  Passed
+    // through unchanged, that makes the browser download the file instead of
+    // previewing it.  Sniff the magic bytes so real PDFs are labelled
+    // correctly no matter what the host claims.
+    const isPdf = upstreamType === 'application/pdf'
+        || body.subarray(0, 5).toString('latin1') === '%PDF-';
+
+    const entry: PreviewEntry = {
+        body,
+        contentType: isPdf ? 'application/pdf' : (upstreamType || 'application/octet-stream'),
+        isPdf,
+        expires: Date.now() + PREVIEW_TTL_MS
+    };
+
+    if (previewCache.size >= PREVIEW_MAX_ENTRIES) {
+        const oldest = previewCache.keys().next().value;
+        if (oldest !== undefined) previewCache.delete(oldest);
+    }
+    previewCache.set(id, entry);
+    return entry;
+};
+
+export const previewResourceHandler = async (req: Request, res: Response) => {
+    try {
+        const id = String(req.params.id);
+        const fileUrl = await getResourceFileUrl(id);
+        if (!fileUrl) {
+            res.status(404).json({ message: 'Resource not found' });
+            return;
+        }
+
+        // Relative / same-origin files are already served by this app.
+        if (fileUrl.startsWith('/')) {
+            res.redirect(fileUrl);
+            return;
+        }
+
+        const entry = await loadPreview(id, fileUrl);
+        const { body, contentType, isPdf } = entry;
+        const safeId = id.replace(/[^A-Za-z0-9_-]/g, '') || 'file';
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader(
+            'Content-Disposition',
+            isPdf ? `inline; filename="resource-${safeId}.pdf"` : 'inline'
+        );
+        res.setHeader('Accept-Ranges', 'bytes');
+        // The bytes come from a third party and our headers are authoritative;
+        // never let a browser reuse an earlier response for this URL (a stale
+        // `application/octet-stream` would silently go back to downloading).
+        res.setHeader('Cache-Control', 'no-store');
+
+        // Honour a single byte range: the browser's PDF viewer uses one to
+        // stream and seek instead of pulling the whole document first.
+        const rangeHeader = req.headers.range;
+        const match = typeof rangeHeader === 'string'
+            ? /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim())
+            : null;
+
+        if (match) {
+            const [, startRaw, endRaw] = match;
+            const suffixLength = startRaw === '' ? Number(endRaw) : NaN;
+            let start = startRaw === '' ? body.length - suffixLength : Number(startRaw);
+            let end = startRaw === '' || endRaw === '' ? body.length - 1 : Number(endRaw);
+
+            const invalid = !Number.isFinite(start) || !Number.isFinite(end)
+                || start < 0 || end < start || start >= body.length;
+            if (invalid) {
+                res.status(416);
+                res.setHeader('Content-Range', `bytes */${body.length}`);
+                res.end();
+                return;
+            }
+
+            end = Math.min(end, body.length - 1);
+            const chunk = body.subarray(start, end + 1);
+            res.status(206);
+            res.setHeader('Content-Range', `bytes ${start}-${end}/${body.length}`);
+            res.setHeader('Content-Length', String(chunk.length));
+            res.end(chunk);
+            return;
+        }
+
+        res.setHeader('Content-Length', String(body.length));
+        res.end(body);
+    } catch (error: any) {
+        if (error?.status === 502) {
+            res.status(502).json({ message: error.message });
+            return;
+        }
         res.status(500).json({ message: error.message });
     }
 };

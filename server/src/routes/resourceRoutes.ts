@@ -2,6 +2,7 @@ import express from 'express';
 import {
     getResources,
     getResourceByIdHandler,
+    previewResourceHandler,
     createResourceHandler,
     updateInteractionHandler,
     addCommentHandler
@@ -15,6 +16,8 @@ router.route('/')
     .post(upload.single('file'), createResourceHandler);
 
 router.route('/:id').get(getResourceByIdHandler);
+
+router.route('/:id/preview').get(previewResourceHandler);
 
 router.route('/:id/comments').post(addCommentHandler);
 

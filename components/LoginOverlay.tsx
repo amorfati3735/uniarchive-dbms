@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, AlertTriangle, Lock, Mail, ArrowRight } from 'lucide-react';
+import { X, ShieldCheck, AlertTriangle, Lock, User as UserIcon, Mail, ArrowRight } from 'lucide-react';
 import { User } from '../types';
 import { api } from '../services/api';
 
@@ -9,7 +9,7 @@ interface Props {
 }
 
 export const LoginOverlay: React.FC<Props> = ({ onClose, onLogin }) => {
-  const [email, setEmail] = useState('admin123@uniarchive.local');
+  const [username, setUsername] = useState('admin123');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -18,8 +18,8 @@ export const LoginOverlay: React.FC<Props> = ({ onClose, onLogin }) => {
     e.preventDefault();
     setError('');
 
-    if (!email.trim()) {
-      setError('Email is required');
+    if (!username.trim()) {
+      setError('Username is required');
       return;
     }
     if (!password) {
@@ -29,15 +29,15 @@ export const LoginOverlay: React.FC<Props> = ({ onClose, onLogin }) => {
 
     setIsLoading(true);
     try {
-      // The demo backend now supports password login in addition to OTP.
-      // OTP (POST /api/auth/otp + /api/auth/verify) still exists but needs
-      // SMTP, so for this demo we use POST /api/auth/login.
-      const result = await api.login(email.trim(), password);
+      // Demo password login: POST /api/auth/login with { username, password }.
+      // OTP (POST /api/auth/otp + /api/auth/verify) still exists but needs SMTP,
+      // so for this demo we use the password path with admin123 / scse.
+      const result = await api.login(username.trim(), password);
       const user: User = result?.user ?? {
-        email: email.trim(),
-        username: email.trim().split('@')[0],
+        email: result?.user?.email ?? 'admin123@uniarchive.local',
+        username: username.trim(),
         isVerified: true,
-        role: 'student'
+        role: result?.user?.role ?? 'admin'
       };
 
       localStorage.setItem('uniarchive_user', JSON.stringify(user));
@@ -67,19 +67,19 @@ export const LoginOverlay: React.FC<Props> = ({ onClose, onLogin }) => {
         <div className="p-8">
           <div className="text-center mb-6">
             <p className="text-uni-muted text-xs uppercase">Demo account</p>
-            <p className="text-uni-contrast text-sm font-bold">admin123@uniarchive.local</p>
+            <p className="text-uni-contrast text-sm font-bold">admin123 / scse</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-xs font-bold text-uni-muted mb-2 uppercase">Email</label>
+              <label className="block text-xs font-bold text-uni-muted mb-2 uppercase">Username</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 text-uni-muted" size={16} />
+                <UserIcon className="absolute left-3 top-3 text-uni-muted" size={16} />
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin123@uniarchive.local"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="admin123"
                   className={`w-full bg-uni-black border ${error ? 'border-uni-alert' : 'border-uni-border'} p-3 pl-10 text-uni-contrast focus:border-uni-neon outline-none transition-colors`}
                   autoFocus
                 />
@@ -117,7 +117,10 @@ export const LoginOverlay: React.FC<Props> = ({ onClose, onLogin }) => {
           </form>
 
           <p className="mt-5 text-center text-uni-muted text-[10px] font-mono uppercase">
-            Press Sign in with the demo credentials above.
+            Press Sign in with the demo credentials above: admin123 / scse.
+          </p>
+          <p className="mt-1 text-center text-uni-muted text-[10px] font-mono">
+            Email on file: admin123@uniarchive.local
           </p>
         </div>
 

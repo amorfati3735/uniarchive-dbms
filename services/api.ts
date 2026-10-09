@@ -102,11 +102,22 @@ export const api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
-        const body = await res.json();
+        const text = await res.text();
         if (!res.ok) {
-            throw new Error(body.message || 'Login failed');
+            let message = 'Login failed';
+            try {
+                const body = JSON.parse(text);
+                message = body.message || message;
+            } catch {
+                message = text || message;
+            }
+            throw new Error(message);
         }
-        return body as { success: boolean; message: string; user?: User };
+        try {
+            return JSON.parse(text) as { success: boolean; message: string; user?: User };
+        } catch {
+            throw new Error('Login response was not valid JSON');
+        }
     },
 
     // AI Assistant

@@ -10,7 +10,9 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
         // The frontend always calls /api; forward it to the Express server so
-        // the app works on localhost and on a LAN address alike.
+        // the app works on localhost and on a LAN address alike.  Override the
+        // backend port locally with VITE_API_PROXY in a root `.env`
+        // (gitignored) rather than editing the committed default.
         proxy: {
           '/api': {
             target: env.VITE_API_PROXY || 'http://localhost:5000',

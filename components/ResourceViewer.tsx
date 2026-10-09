@@ -98,10 +98,15 @@ export const ResourceViewer: React.FC<Props> = ({ resource, onBack, isSaved = fa
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Render the PDF with the browser's built-in viewer: no third-party embed,
-  // no extra network round-trip through docs.google.com, and it works offline
-  // for same-origin files.
-  const viewerUrl = `${resource.pdfUrl || ''}#view=FitH`;
+  // Preview the PDF through the backend instead of embedding the raw
+  // Cloudinary / external URL directly. Cloudinary serves PDFs uploaded as a
+  // `raw` asset with `Content-Disposition: attachment`, and many hosts do the
+  // same, which makes the browser download the file instead of rendering it in
+  // an iframe. `GET /api/resources/:id/preview` streams the file back with
+  // `Content-Disposition: inline`, so the built-in browser viewer kicks in.
+  const previewUrl = resource.pdfUrl
+    ? `${(import.meta.env.VITE_API_URL as string | undefined) ?? '/api'}/resources/${resource.id}/preview`
+    : undefined;
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] animate-in fade-in slide-in-from-bottom-4 duration-300 relative">
@@ -183,14 +188,23 @@ export const ResourceViewer: React.FC<Props> = ({ resource, onBack, isSaved = fa
                   {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
                 </button>
 
-                <iframe
-                  src={viewerUrl}
-                  className="w-full flex-1 border-0"
-                  title="PDF Viewer"
-                />
+                {previewUrl ? (
+                  <iframe
+                    src={`${previewUrl}#view=FitH`}
+                    className="w-full flex-1 border-0"
+                    title="PDF Viewer"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-uni-muted">
+                    <div className="w-20 h-24 border-2 border-uni-border flex items-center justify-center mb-4">
+                      <span className="font-bold text-xs">PDF</span>
+                    </div>
+                    <p>Loading PDF preview...</p>
+                  </div>
+                )}
                 {!isFullscreen && (
                   <div className="bg-uni-black border-t border-uni-border p-2 text-center">
-                    <a href={resource.pdfUrl} target="_blank" rel="noreferrer" className="text-xs text-uni-muted hover:text-uni-neon flex items-center justify-center gap-2">
+                    <a href={previewUrl} target="_blank" rel="noreferrer" className="text-xs text-uni-muted hover:text-uni-neon flex items-center justify-center gap-2">
                       <ExternalLink size={10} /> Problems viewing? Open original file
                     </a>
                   </div>

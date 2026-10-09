@@ -181,8 +181,15 @@ test('UNIQUE constraints prevent duplicate keys', async () => {
         () => conn.query(`INSERT INTO courses (course_code, course_name) VALUES ('BMAT202L', 'dup')`),
         /Duplicate entry/
     );
+
+    // Create the colliding row first rather than assuming it is in the seed
+    // (the seed was collapsed to a single user, so a hard-coded username is
+    // not guaranteed to exist).
+    await conn.query(
+        `INSERT INTO users (username, email) VALUES ('uniq_probe', 'uniq_probe@test.local')`
+    );
     await assert.rejects(
-        () => conn.query(`INSERT INTO users (username, email) VALUES ('stat_god_99', 'x@y.z')`),
+        () => conn.query(`INSERT INTO users (username, email) VALUES ('uniq_probe', 'other@test.local')`),
         /Duplicate entry/
     );
 });

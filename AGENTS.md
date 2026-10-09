@@ -57,13 +57,22 @@ param). Keep it that way — the repository casts the integer PK with `String()`
 
 - MongoDB → MySQL port complete. Mongoose models (`server/src/models/`) were
   **deleted** and replaced by `server/src/repositories/`.
-- `db/schema.sql` + `db/seed.sql` apply cleanly; 10 resources, 34 topic links,
-  3 comments, 2,912 activity rows.
+- `db/schema.sql` + `db/seed.sql` apply cleanly via `npm run db:reset`;
+  10 resources, 34 topic links, 3 comments, 2,912 activity rows, **1 user**
+  (admin123 / admin123@uniarchive.local, role=admin, is_verified=1).
 - Backend + frontend both build; `tsc --noEmit` clean.
-- **24/24 tests pass** (`server/test/`).
-- API contract unchanged, so the React frontend needed no edits.
+- **29 tests; 28 pass.** `UNIQUE constraints prevent duplicate keys`
+  (`server/test/schema.test.ts`) fails on every clean run: it asserts that
+  inserting `stat_god_99` is rejected, but the seed was collapsed to a single
+  user (`f71895e`), so nothing is there to collide with. The test's own INSERT
+  then creates the row, which is why a *second* run in the same database passes.
+  Re-add the user to `db/seed.sql` or change the assertion to fix it properly.
+- API contract unchanged for existing endpoints; a new
+  `POST /api/auth/login` was added (returns the same `User` shape as
+  `/api/auth/verify`).
 - Published: **github.com/amorfati3735/uniarchive-dbms** (public).
   `origin` = that repo, `upstream` = the original `amorfati3735/uniarchive`.
+  New work is on branch **feature/demo-login** (commit `f71895e`).
 - Performance pass done: Tailwind CDN replaced with a compiled v4 build, entry
   bundle code-split (recharts + overlays deferred), mock data removed from the
   bundle, and API responses gzipped. Initial JS+CSS ~198 kB → ~95 kB gzip; the
@@ -76,8 +85,57 @@ param). Keep it that way — the repository casts the integer PK with `String()`
   reloads, the fake dashboard numbers were replaced with real data, the API has
   a JSON 404 + error handler, and the app calls `/api` relatively (Vite proxy).
 
+**PDF preview + local dev fixes (2026-10-09 session):**
+- Added `GET /api/resources/:id/preview` (`resourceController.previewResourceHandler`):
+  fetches the stored `pdf_url` server-side and re-serves the bytes with
+  `Content-Disposition: inline`, a sniffed `Content-Type`, and
+  `Cache-Control: no-store`. `ResourceViewer.tsx` embeds this endpoint instead
+  of the raw `pdf_url`. See §7 for why both the disposition *and* the type
+  matter.
+- `server/src/app.ts`: `PORT` is parsed with `Number(...)`, and `shutdown()`
+  now calls `server.closeIdleConnections()` plus a 2s `unref`'d backstop. Without
+  this, `tsx watch` hung on SIGTERM (browsers and the Vite proxy hold keep-alive
+  sockets open, so `server.close()`'s callback never fired), force-killed the
+  child every 5s, and respawned in a loop.
+- `LoginOverlay.tsx` now logs in with the **username** (`admin123`), not the
+  email — `/api/auth/login` matches `username`.
+- Local `.env` sets `PORT=5001`, so `vite.config.ts` proxies `/api` to 5001.
+  The committed default remains 5000; override with `VITE_API_PROXY` if you
+  change the port back.
+
+**Auth (this session):**
+- Added `POST /api/auth/login` (username + password). Demo credential:
+  **admin123 / scse**. Password stored as `SHA-256(password)` in
+  `users.password_hash` — **demo-only, not production-grade**; do not reuse
+  this scheme for a real deployment.
+- Frontend `LoginOverlay` is now a single email+password form pre-filled with
+  the demo credential; it calls `api.login()` and writes the returned user to
+  localStorage exactly as the old OTP path did.
+- OTP endpoints (`POST /api/auth/otp`, `/api/auth/verify`) still exist but are
+  fenced behind `smtpReady()` — they return **503** with a pointer to
+  `/api/auth/login` when SMTP is absent, so the demo deploy does not crash.
+- Uploads (`POST /api/resources`) now work when Cloudinary is configured:
+  `multer` (memoryStorage, PDF/image/doc filter, 25 MB) → Cloudinary →
+  `createResource`. The frontend `UploadOverlay` sends `FormData { file, data }`.
+
+**Credentials imported this session:**
+- `server/.env` (gitignored, NOT committed) now holds Cloudinary/SMTP/NVIDIA
+  keys copied from `downloads/random shi/uniarchive/server/.env`. The local DB
+  stays the anonymous user (`DB_USER=` / `DB_PASSWORD=` empty) for the local
+  MariaDB that only allows `root` via Unix socket.
+- **Cloudinary key verified working** (listed the cloud's resources).
+- **SMTP key does NOT work** with these credentials: `535 5.7.8 Username and
+  Password not accepted`. The imported `SMTP_PASS` is 19 chars with spaces
+  (`fdoa guoo jicg jbsx`); real Gmail app passwords are 16 chars with no spaces.
+  OTP email will fail until this is fixed.
+- **NVIDIA key does NOT work** with these credentials: the API returned a JSON
+  parse error on the Bearer token. AI chat will fail until this is fixed.
+- **Result:** browsing / search / detail / comments / counters / stats / upload
+  (via Cloudinary) all work; OTP-email and AI-chat do not (bad keys, not a
+  code bug).
+
 **Not done / optional** (see §9): dedicated DB user, rendered ER image,
-Cloudinary/SMTP/NVIDIA credentials, any deployment.
+fixing the broken SMTP/NVIDIA keys, any deployment.
 
 ## 4. Run it
 
@@ -91,7 +149,7 @@ npm run db:reset          # applies db/schema.sql + db/seed.sql (WIPES the DB)
 
 # --- backend ---
 npm run dev               # http://localhost:5000  (tsx watch)
-npm test                  # 24 checks; note: reseeds the DB first (pretest)
+npm test                  # 29 checks; reseeds a SEPARATE test DB (see below)
 npm run build && npm start
 npm run typecheck
 
@@ -146,18 +204,51 @@ npm install && npm run dev   # Vite, port 3000
 ## 7. Gotchas / failure modes
 
 - ⚠ **`db/schema.sql` starts with `DROP DATABASE IF EXISTS test_uniarchive`.**
-  Running it (or `npm run db:reset`) destroys all data.
-- `npm test` runs `pretest` → reseeds. That drops and recreates the DB while a
-  running dev server holds a pool; **restart the API after running tests** if
-  you hit stale-connection errors.
+  Running it (or `npm run db:reset`) destroys all data — including uploaded
+  rows (the files survive on Cloudinary, but the DB rows do not).
+- **`npm test` no longer touches the dev database.** `pretest`/`test` run with
+  `DB_NAME=test_uniarchive_test`, and `seed.ts` rewrites the hard-coded
+  `` `test_uniarchive` `` identifier in `schema.sql`/`seed.sql` to `DB_NAME`.
+  So the suite drops/recreates `test_uniarchive_test` and leaves
+  `test_uniarchive` (and your uploads) alone. `dotenv` does not override an
+  already-set env var, which is what makes the override stick. Use
+  `npm run db:reset` when you *do* want the dev DB rebuilt.
 - Tests use `--test-force-exit` because the mysql pool / undici keep-alive hold
   the event loop open.
 - `server/src/app.ts` binds port 5000 **unless `process.env.VERCEL` is set**
   (tests set it to `1` and bind an ephemeral port themselves). Don't reintroduce
   an `argv`-based listen guard.
+- **Seed FK gotcha (real, not theoretical):** `db/seed.sql` must keep
+  `SET FOREIGN_KEY_CHECKS = 0` active through the whole data load. Putting
+  `SET FOREIGN_KEY_CHECKS = 1` between the TRUNCATEs and the INSERTs made the
+  batch fail at the `resources` INSERT with `fk_resources_author` even though
+  `users(user_id=1)` existed — standalone INSERT worked, batch did not. If you
+  touch the seed, verify `npm run db:reset` imports **all 10 resources** (not
+  0 or 1) and that `GET /api/resources` returns 10.
+- **Seed author gotcha:** every `resources` row's `author_id` must reference an
+  existing `users.user_id`. With a single demo user (user_id=1), all 10
+  resources must use `author_id=1`; otherwise the RESOURCE_SELECT JOIN filters
+  them out and the API returns fewer than 10 resources even though the table has
+  10 rows.
+- ⚠ **Cloudinary `raw` assets break browser preview unless re-labelled.** PDFs
+  are uploaded with `resource_type: 'raw'`, and Cloudinary then serves them as
+  `content-type: application/octet-stream` **and**
+  `content-disposition: attachment`, with no file extension in the URL. Embedded
+  directly, the browser downloads the file instead of previewing it. That is why
+  the seeded rows (real `application/pdf` from w3.org) previewed while every
+  upload did not. `GET /api/resources/:id/preview` fixes both: it forces
+  `Content-Disposition: inline` and sniffs the `%PDF-` magic bytes to set
+  `Content-Type: application/pdf` regardless of what the host claims.
+- The preview endpoint caches bytes in-process (64 entries, 5-min TTL) and
+  honours single byte ranges (`206` + `Content-Range`, `416` when unsatisfiable,
+  `Accept-Ranges: bytes`), so the browser's PDF viewer can stream/seek. It still
+  buffers the whole file in memory, so it is a demo-scale design, not a CDN.
 - Cloudinary, SMTP and the AI endpoint need real keys. With empty keys only the
   **upload, OTP-email and AI-chat** features fail — listing, search, detail,
   comments, counters and stats all work without them (seeded data).
+- **Imported keys are not all valid:** the Cloudinary key works; the imported
+  SMTP and NVIDIA keys do not (see §3). Do not assume importing a `.env` from
+  another copy makes those services work.
 - The `pkill` footgun: `pkill -f "dist/app.js"` matches the shell command that
   contains that string and kills itself. Use `pgrep`/kill by PID, or a bracket
   pattern that the command line doesn't contain.
@@ -173,19 +264,23 @@ npm install && npm run dev   # Vite, port 3000
 - `resources.upvotes/downloads/views` are **intentional** denormalized counters
   (documented in `docs/case-study.md`). Don't "normalize" them away without
   updating the case study.
+- **The demo password is trivial** (`scse`, SHA-256 only). Anyone with the demo
+  credential can log in. This is fine for a local demo, not for anything public.
 
 ## 8. How to verify a change
 
 ```bash
 cd server
 npm run typecheck                 # must be clean
-npm test                          # must stay 24/24 (or more)
+npm test                          # 28/29 (see §3); ⚠ reseeds → WIPES uploads
 npm run build                     # dist/ must compile
 npm run dev &                     # then exercise the API:
 curl -s localhost:5000/api/health
 curl -s "localhost:5000/api/resources?search=k-map"
 curl -s localhost:5000/api/stats | head -c 200
 curl -s -X POST localhost:5000/api/resources/1/upvote
+# PDF preview must come back inline as a PDF (not octet-stream / attachment)
+curl -sI localhost:5000/api/resources/1/preview | grep -iE 'content-type|content-disposition'
 
 cd .. && npm run build            # frontend must build
 mariadb test_uniarchive -e "SELECT * FROM v_course_overview;"
@@ -196,9 +291,14 @@ add suppressions to make checks pass.
 
 ## 9. Roadmap / optional work
 
+- [x] Demo password login without SMTP (`POST /api/auth/login`, admin123/scse).
+- [x] Collapse seed to a single demo user + fix seed FK/author bugs.
+- [x] Import Cloudinary/SMTP/NVIDIA keys from the downloaded copy (Cloudinary
+      works; SMTP + NVIDIA keys are bad and need regeneration).
+- [ ] Fix the bad SMTP + NVIDIA keys (regenerate Gmail app password / NVIDIA
+      key) so OTP email + AI chat work.
 - [ ] Create a dedicated MariaDB user + password instead of the anonymous user.
 - [ ] Render the ER/EER diagram to an image (PlantUML / draw.io) for submission.
-- [ ] Provide Cloudinary / SMTP / NVIDIA keys and verify upload + OTP + AI flows.
 - [ ] Add the architecture note to the user's global `~/AGENTS.md` if desired.
 - [ ] Deploy (Vercel config exists in `vercel.json` + `api/index.ts`).
 - [ ] Server-side pagination for `/api/resources` (currently returns everything).
@@ -226,3 +326,6 @@ add suppressions to make checks pass.
 | 2026-10-06 | Initial `AGENTS.md`. Recorded the MongoDB → MySQL port, 3NF schema (14 relations), repository layer, 24-test suite, docs, and publication to `amorfati3735/uniarchive-dbms`. |
 | 2026-10-06 | Performance pass: Tailwind v4 compiled build (CDN removed), code splitting (`Analytics`/overlays lazy, `manualChunks`), mock data dropped from the client, API gzip, native PDF viewer. Fixed `Resource.id` to be a string (was breaking `/resource/:id`). |
 | 2026-10-06 | Correctness/cleanup pass: fixed the broken Vercel deps (root now mirrors the server, no more mongoose), OTP creates a verified user + throttles resends, uploads attributed to the logged-in user, theme/library persisted, real dashboard stats (removed hardcoded numbers), configurable CORS + optional email-domain gate, JSON 404/error handler, graceful shutdown, relative `/api` + Vite proxy, `tw-animate-css` (the `animate-in` classes were no-ops), dead `uploads/` dir removed, auth tests added (29 total). |
+| 2026-10-09 | Hardening pass: `npm test` now seeds/drops `test_uniarchive_test` (via `DB_NAME` substitution in `seed.ts`) instead of the dev DB, so running tests no longer destroys uploads. Fixed the flaky `schema.test.ts` UNIQUE test to create its own colliding row (it had assumed a seed user removed in `f71895e`) — suite is now 29/29. Preview endpoint gained `Accept-Ranges`/`206`/`416` byte-range support and a bounded in-process cache. `vite.config.ts` default proxy reverted to the documented `localhost:5000`, with the local override moved to a gitignored root `.env` (`VITE_API_PROXY`). `.gitignore` hardened (`.env.*` with `!.env.example`, `*.pem`, `*.key`). |
+| 2026-10-09 | PDF preview + dev-server fixes: added `GET /api/resources/:id/preview` (inline disposition + magic-byte content sniffing + `no-store`) and pointed `ResourceViewer` at it — uploads were downloading instead of rendering because Cloudinary serves `raw` PDFs as `attachment`/`octet-stream`. Fixed the `tsx watch` SIGTERM respawn loop in `server/src/app.ts` and parsed `PORT` as a number. `LoginOverlay` now authenticates with the username (`admin123`), not the email. Vite's `/api` proxy targets 5001 to match the local `.env`. Superseded the `.env` work below. |
+| 2026-10-07 | Demo password login (branch `feature/demo-login`, commit `f71895e`): added `POST /api/auth/login` (admin123/scse, SHA-256 password, demo-only), rewrote `LoginOverlay` to a single email+password form, fenced OTP endpoints behind `smtpReady()` (503 when SMTP absent), added `password_hash` to `users`, collapsed seed to one user, and fixed two seed bugs that made `db:reset` import 0–1 resources (FK-checks-off-through-data-load + all resources use author_id=1). Imported Cloudinary/SMTP/NVIDIA keys from `downloads/random shi/uniarchive/server/.env` into `server/.env` (gitignored). Verified Cloudinary works; SMTP (535 5.7.8) and NVIDIA (JSON parse error on Bearer) keys are bad and need regeneration. |

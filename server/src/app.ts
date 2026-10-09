@@ -84,7 +84,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // Start the HTTP listener unless running as a serverless function.
 // On Vercel the app is imported and invoked per-request (see api/index.ts).
@@ -93,12 +93,31 @@ if (!process.env.VERCEL) {
         console.log(`Server running on port ${PORT}`);
     });
 
+    let shuttingDown = false;
+
     const shutdown = async (signal: string) => {
+        if (shuttingDown) return;
+        shuttingDown = true;
         console.log(`\n${signal} received, shutting down...`);
+
+        // `server.close()` only stops new connections: it waits for existing
+        // keep-alive sockets to end.  The browser and the Vite dev proxy hold
+        // those open, so the callback can never fire and the process hangs --
+        // which is what makes `tsx watch` force-kill the child every 5s.
+        // Drop idle sockets immediately, and keep a hard backstop so we always
+        // exit promptly.
+        const forceExit = setTimeout(() => {
+            (server as any).closeAllConnections?.();
+            process.exit(0);
+        }, 2000);
+        forceExit.unref();
+
         server.close(async () => {
+            clearTimeout(forceExit);
             await pool.end().catch(() => {});
             process.exit(0);
         });
+        (server as any).closeIdleConnections?.();
     };
     process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('SIGTERM', () => shutdown('SIGTERM'));
